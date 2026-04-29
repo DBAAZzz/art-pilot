@@ -1,6 +1,7 @@
 import { app } from 'electron'
 import path from 'node:path'
 import { registerControllers } from '../controllers'
+import { getAppIconPath } from './appIcon'
 import { WindowManager } from './windowManager'
 
 process.env.DIST_ELECTRON = path.join(__dirname)
@@ -16,6 +17,12 @@ export class AppLifecycle {
     app.disableHardwareAcceleration()
 
     app.whenReady().then(() => {
+      const icon = getAppIconPath()
+
+      if (process.platform === 'darwin' && icon) {
+        app.dock?.setIcon(icon)
+      }
+
       registerControllers()
       this.windowManager.createMainWindow()
     })

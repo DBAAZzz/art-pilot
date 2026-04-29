@@ -1,13 +1,19 @@
 import { BrowserWindow } from 'electron'
 import path from 'node:path'
+import { getAppIconPath } from './appIcon'
 
 export class WindowManager {
   private mainWindow: BrowserWindow | null = null
 
   createMainWindow() {
+    const icon = getAppIconPath()
+
     this.mainWindow = new BrowserWindow({
-      width: 1400,
-      height: 670,
+      width: 1512,
+      height: 982,
+      ...(icon ? { icon } : {}),
+      titleBarStyle: 'hidden',
+      trafficLightPosition: { x: 16, y: 14 },
       webPreferences: {
         preload: path.join(__dirname, 'preload.js'),
       },

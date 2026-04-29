@@ -1,0 +1,11 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="accent" x1="246" y1="234" x2="792" y2="782" gradientUnits="userSpaceOnUse"><stop stop-color="#819BFF"/><stop offset="1" stop-color="#4A55FF"/></linearGradient>
+    <filter id="soft" x="72" y="72" width="880" height="880" filterUnits="userSpaceOnUse"><feDropShadow dx="0" dy="28" stdDeviation="36" flood-color="#1E2A60" flood-opacity="0.14"/></filter>
+  </defs>
+  <rect x="112" y="112" width="800" height="800" rx="188" fill="#FFFFFF" filter="url(#soft)"/>
+  <rect x="116" y="116" width="792" height="792" rx="184" stroke="#0F172A" stroke-opacity="0.08" stroke-width="8"/>
+  <path d="M700.5 318.5C652.8 267.7 585 236 509.7 236C363.7 236 245.4 354.3 245.4 500.3C245.4 646.3 363.7 764.6 509.7 764.6C655.7 764.6 774 646.3 774 500.3C774 458.3 764.2 418.6 746.8 383.3" stroke="url(#accent)" stroke-width="44" stroke-linecap="round"/>
+  <circle cx="733" cy="350" r="54" fill="url(#accent)"/>
+  <path d="M512 366C534.5 442.3 581.7 489.5 658 512C581.7 534.5 534.5 581.7 512 658C489.5 581.7 442.3 534.5 366 512C442.3 489.5 489.5 442.3 512 366Z" fill="url(#accent)"/>
+</svg>

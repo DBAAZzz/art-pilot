@@ -9,11 +9,10 @@ export class WindowManager {
     const icon = getAppIconPath()
 
     this.mainWindow = new BrowserWindow({
-      width: 1512,
-      height: 982,
+      width: 1200,
+      height: 800,
       ...(icon ? { icon } : {}),
-      titleBarStyle: 'hidden',
-      trafficLightPosition: { x: 16, y: 14 },
+      titleBarStyle: 'hiddenInset',
       webPreferences: {
         preload: path.join(__dirname, 'preload.js'),
       },
@@ -21,7 +20,7 @@ export class WindowManager {
 
     if (process.env.VITE_DEV_SERVER_URL) {
       this.mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL)
-      this.mainWindow.webContents.openDevTools()
+      // this.mainWindow.webContents.openDevTools()
     } else {
       this.mainWindow.loadFile(path.join(process.env.DIST!, 'index.html'))
     }

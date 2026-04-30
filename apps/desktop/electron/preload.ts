@@ -12,4 +12,7 @@ contextBridge.exposeInMainWorld('api', {
   readTxtFile: () => {
     return ipcRenderer.invoke(IPC_CHANNELS.file.readOneTextFile)
   },
+  toggleWindowMaximize: () => {
+    return ipcRenderer.invoke(IPC_CHANNELS.window.toggleMaximize)
+  },
 })

@@ -1,12 +1,20 @@
-import { app } from 'electron'
-import { FileController } from './fileController'
+import { CodexController } from './codexController'
+import { ImageGenerationController } from './imageGenerationController'
 import { WindowController } from './windowController'
-import { FileService } from '../services/fileService'
+import { CodexImageProvider } from '../providers/codexImageProvider'
+import { CodexService } from '../services/codexService'
+import { ImageGenerationService } from '../services/imageGenerationService'
 
 export function registerControllers() {
-  const fileService = new FileService(app.getAppPath())
+  const codexImageProvider = new CodexImageProvider()
+  const codexService = new CodexService()
+  const imageGenerationService = new ImageGenerationService(codexImageProvider)
 
-  const controllers = [new FileController(fileService), new WindowController()]
+  const controllers = [
+    new CodexController(codexService),
+    new ImageGenerationController(imageGenerationService),
+    new WindowController(),
+  ]
 
   controllers.forEach((controller) => controller.register())
 }

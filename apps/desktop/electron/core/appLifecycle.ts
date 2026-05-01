@@ -1,6 +1,10 @@
 import { app } from 'electron'
 import path from 'node:path'
 import { registerControllers } from '../controllers'
+import {
+  registerGeneratedImageProtocolHandler,
+  registerGeneratedImageProtocolScheme,
+} from '../protocols/generatedImageProtocol'
 import { getAppIconPath } from './appIcon'
 import { WindowManager } from './windowManager'
 
@@ -15,6 +19,7 @@ export class AppLifecycle {
 
   start() {
     app.disableHardwareAcceleration()
+    registerGeneratedImageProtocolScheme()
 
     app.whenReady().then(() => {
       const icon = getAppIconPath()
@@ -23,6 +28,7 @@ export class AppLifecycle {
         app.dock?.setIcon(icon)
       }
 
+      registerGeneratedImageProtocolHandler()
       registerControllers()
       this.windowManager.createMainWindow()
     })

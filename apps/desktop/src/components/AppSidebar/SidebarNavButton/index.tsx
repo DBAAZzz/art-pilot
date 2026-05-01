@@ -21,11 +21,11 @@ export function SidebarNavButton({ item }: { item: SidebarNavItem }) {
     )
 
   const iconClassName = ({ isActive }: { isActive?: boolean } = {}) =>
-    cn('size-3 shrink-0', item.active || isActive ? 'text-text-strong' : 'text-text-muted group-hover:text-text-strong')
+    cn('size-4 shrink-0', item.active || isActive ? 'text-text-strong' : 'text-text-muted group-hover:text-text-strong')
 
   const content = (isActive?: boolean) => (
     <>
-      <Icon className={iconClassName({ isActive })} strokeWidth={1.9} />
+      <Icon className={iconClassName({ isActive })} strokeWidth={2} />
       <span className="min-w-0 flex-1 truncate text-base">{item.label}</span>
     </>
   )

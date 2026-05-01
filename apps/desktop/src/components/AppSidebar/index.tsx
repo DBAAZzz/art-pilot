@@ -34,8 +34,8 @@ export function AppSidebar() {
           to='/settings'
         >
           <Settings
-            className='size-3 shrink-0 text-current transition-colors'
-            strokeWidth={1.9}
+            className='size-4 shrink-0 text-current transition-colors'
+            strokeWidth={2}
           />
           <span className='min-w-0 flex-1 truncate text-base'>设置</span>
         </NavLink>

@@ -10,7 +10,7 @@ export function AppLayout() {
         <AppSidebar />
         <section className="relative min-w-0 flex-1 overflow-hidden">
           <AppHeader />
-          <div className="grid h-full bg-[#ffffff] grid-cols-[340px_minmax(0,1fr)] gap-4 overflow-y-auto px-4 pb-4 pt-[72px]">
+          <div className="grid h-full bg-[#ffffff] grid-cols-[440px_minmax(0,1fr)] gap-4 overflow-y-auto px-4 pb-4 pt-[72px]">
             <Outlet />
           </div>
         </section>

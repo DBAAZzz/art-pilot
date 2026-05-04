@@ -1,4 +1,9 @@
-import { OptionGroup, SegmentButton } from '../ImageGenerationPrimitives'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+} from '@/components/Select'
 
 const aspectRatioOptions = ['1:1', '4:3', '3:2', '16:9', '9:16'] as const
 const imageCountOptions = [1, 2, 4] as const
@@ -20,36 +25,50 @@ export function GenerationOptions({
   onImageCountChange: (value: ImageCount) => void
 }) {
   return (
-    <div className="mt-5 grid w-full gap-4">
-      <OptionGroup
-        activeIndex={aspectRatioOptions.indexOf(aspectRatio)}
-        label="画面比例"
-        optionCount={aspectRatioOptions.length}
+    <div className="flex min-w-0 items-center gap-1.5">
+      <Select
+        value={aspectRatio}
+        onValueChange={(value) => onAspectRatioChange(value as AspectRatio)}
       >
-        {aspectRatioOptions.map((option) => (
-          <SegmentButton
-            key={option}
-            active={aspectRatio === option}
-            label={option}
-            onClick={() => onAspectRatioChange(option)}
-          />
-        ))}
-      </OptionGroup>
+        <SelectTrigger
+          className="h-8 w-16 border-transparent bg-transparent pl-2.5 pr-2 text-base font-normal text-text-muted hover:border-transparent hover:bg-fill-hover"
+          style={{
+            fontSize: 'var(--text-base)',
+            lineHeight: 'var(--text-base--line-height)',
+          }}
+        >
+          <span className="text-text-strong">{aspectRatio}</span>
+        </SelectTrigger>
+        <SelectContent align="start" className="min-w-[120px]" menuTitle="画面比例">
+          {aspectRatioOptions.map((option) => (
+            <SelectItem className="text-base font-normal leading-5" key={option} value={option}>
+              {option}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
 
-      <OptionGroup
-        activeIndex={imageCountOptions.indexOf(imageCount)}
-        label="生成张数"
-        optionCount={imageCountOptions.length}
+      <Select
+        value={String(imageCount)}
+        onValueChange={(value) => onImageCountChange(Number(value) as ImageCount)}
       >
-        {imageCountOptions.map((option) => (
-          <SegmentButton
-            key={option}
-            active={imageCount === option}
-            label={String(option)}
-            onClick={() => onImageCountChange(option)}
-          />
-        ))}
-      </OptionGroup>
+        <SelectTrigger
+          className="h-8 w-14 border-transparent bg-transparent pl-2.5 pr-2 text-base font-normal text-text-muted hover:border-transparent hover:bg-fill-hover"
+          style={{
+            fontSize: 'var(--text-base)',
+            lineHeight: 'var(--text-base--line-height)',
+          }}
+        >
+          <span className="text-text-strong">{imageCount}张</span>
+        </SelectTrigger>
+        <SelectContent align="start" className="min-w-[120px]" menuTitle="生成张数">
+          {imageCountOptions.map((option) => (
+            <SelectItem className="text-base font-normal leading-5" key={option} value={String(option)}>
+              {option}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
     </div>
   )
 }

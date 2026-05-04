@@ -33,6 +33,26 @@ export class GeneratedImageRegistry {
     logger.info('cleared generated images for job: jobId=%s count=%d', jobId, deletedCount)
   }
 
+  unregisterTask(jobId: string) {
+    this.clearJob(jobId)
+  }
+
+  pruneTaskIds(visibleTaskIds: Iterable<string>) {
+    const visibleTaskIdSet = new Set(visibleTaskIds)
+    let deletedCount = 0
+
+    for (const key of this.imagePaths.keys()) {
+      const [jobId] = key.split(':')
+
+      if (!visibleTaskIdSet.has(jobId)) {
+        this.imagePaths.delete(key)
+        deletedCount += 1
+      }
+    }
+
+    logger.info('pruned generated image registry: visibleTasks=%d deletedImages=%d remainingImages=%d', visibleTaskIdSet.size, deletedCount, this.imagePaths.size)
+  }
+
   createGeneratedImageUrl(jobId: string, index: number) {
     return `artpilot-image://generated/${encodeURIComponent(jobId)}/${index}`
   }

@@ -110,3 +110,30 @@ input {
   -webkit-app-region: no-drag;
   app-region: no-drag;
 }
+
+.art-pilot-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+
+.art-pilot-scrollbar:hover {
+  scrollbar-color: rgba(0, 0, 0, 0.22) transparent;
+}
+
+.art-pilot-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.art-pilot-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.art-pilot-scrollbar::-webkit-scrollbar-thumb {
+  background-color: transparent;
+  border-radius: 999px;
+}
+
+.art-pilot-scrollbar:hover::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 0, 0, 0.22);
+}

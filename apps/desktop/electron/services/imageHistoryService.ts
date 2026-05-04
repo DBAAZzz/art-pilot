@@ -148,7 +148,7 @@ export class ImageHistoryService {
     }
 
     // 历史图片从 SQLite 恢复后必须重新注册到内存 registry，自定义协议才能解析到真实文件。
-    return tasks.map((task) => ({
+    const historyTasks = tasks.map((task) => ({
       jobId: task.id,
       codexThreadId: task.codex_thread_id ?? undefined,
       prompt: task.prompt,
@@ -177,6 +177,10 @@ export class ImageHistoryService {
         }
       }),
     }))
+
+    generatedImageRegistry.pruneTaskIds(historyTasks.map((task) => task.jobId))
+
+    return historyTasks
   }
 
   private updateTaskStatus(jobId: string, status: GenerationTaskStatus, error?: string) {

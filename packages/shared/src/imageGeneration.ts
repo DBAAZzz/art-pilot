@@ -40,8 +40,10 @@ export type ImageGenerationEvent =
   | {
       type: typeof IMAGE_GENERATION_EVENT_TYPES.started
       jobId: string
+      prompt: string
       count: number
       size?: ImageGenerationSize
+      createdAt: number
     }
   | {
       type: typeof IMAGE_GENERATION_EVENT_TYPES.codexThreadStarted

@@ -46,7 +46,7 @@ export class CodexImageProvider {
       images: request.references?.map((reference) => reference.path),
       startupTimeoutMs: 30000,
       inactivityTimeoutMs: normalizeImageCount(request.count) * imageTimeoutMs,
-      absoluteTimeoutMs: 600000,
+      absoluteTimeoutMs: normalizeImageCount(request.count) * imageTimeoutMs,
     })
     logger.info('codex streaming process spawned: pid=%s', String(childProcess.pid ?? 'unknown'))
 

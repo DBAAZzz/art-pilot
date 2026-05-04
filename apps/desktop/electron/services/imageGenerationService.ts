@@ -1,7 +1,7 @@
 import { app, webContents } from 'electron'
 import type { WebContents } from 'electron'
 import { constants } from 'node:fs'
-import { access, stat } from 'node:fs/promises'
+import { access, rename, stat } from 'node:fs/promises'
 import path from 'node:path'
 import { randomUUID } from 'node:crypto'
 import { IMAGE_GENERATION_EVENT_TYPES, IPC_CHANNELS } from '@art-pilot/shared'
@@ -15,7 +15,7 @@ import { generatedImageRegistry } from '../protocols/generatedImageRegistry'
 import type { CodexImageProvider } from '../providers/codexImageProvider'
 import type { CodexCleanupService } from './codexCleanupService'
 import type { ImageHistoryService } from './imageHistoryService'
-import type { ImageLibraryService } from './imageLibraryService'
+import type { ImageLibraryService, ImportedImage } from './imageLibraryService'
 import { CODEX_STREAM_EVENT_TYPES } from '../utils/codexCli'
 import type { CodexStreamEvent, CodexStreamingChildProcess } from '../utils/codexCli'
 import { findCodexGeneratedImagesFromSessions } from '../utils/generatedImages'
@@ -25,6 +25,7 @@ const logger = createLogger('art-pilot:image-service')
 const ALLOWED_REFERENCE_EXTENSIONS = new Set(['.apng', '.avif', '.gif', '.jpeg', '.jpg', '.png', '.webp'])
 const DEFAULT_IMAGE_COUNT = 1
 const MAX_IMAGE_COUNT = 8
+const MAX_ACTIVE_IMAGE_JOBS = 5
 
 type ActiveImageGenerationJob = {
   // Art Pilot 自己生成的任务 ID，用来关联 renderer 状态和取消请求。
@@ -51,8 +52,9 @@ type ActiveImageGenerationJob = {
 }
 
 export class ImageGenerationService {
-  // v1 明确只允许一个 active image job，防止重复点击生成导致多个 Codex 进程并发消耗额度。
-  private activeJob: ActiveImageGenerationJob | null = null
+  private readonly activeJobs = new Map<string, ActiveImageGenerationJob>()
+  private isQuitting = false
+  private quitAfterActiveJobsTerminated = false
 
   constructor(
     private readonly codexImageProvider: CodexImageProvider,
@@ -60,8 +62,14 @@ export class ImageGenerationService {
     private readonly imageHistoryService: ImageHistoryService,
     private readonly codexCleanupService: CodexCleanupService,
   ) {
-    app.on('before-quit', () => {
-      this.terminateActiveJob('Application is quitting')
+    app.on('before-quit', (event) => {
+      if (this.activeJobs.size === 0 || this.quitAfterActiveJobsTerminated) {
+        return
+      }
+
+      event.preventDefault()
+      this.isQuitting = true
+      this.terminateActiveJobs('Application is quitting')
     })
   }
 
@@ -69,14 +77,14 @@ export class ImageGenerationService {
     ownerWebContents: WebContents,
     request: ImageGenerationRequest,
   ): Promise<ImageGenerationStartResult> {
-    if (this.activeJob) {
+    if (this.activeJobs.size >= MAX_ACTIVE_IMAGE_JOBS) {
       logger.warn(
-        'rejected image generation because another job is active: activeJobId=%s activeStatus=%s owner=%d',
-        this.activeJob.jobId,
-        this.activeJob.status,
-        this.activeJob.ownerWebContentsId,
+        'rejected image generation because active job limit reached: activeJobs=%d limit=%d owner=%d',
+        this.activeJobs.size,
+        MAX_ACTIVE_IMAGE_JOBS,
+        ownerWebContents.id,
       )
-      throw new Error('已有图片生成任务正在运行')
+      throw new Error(`当前已有 ${MAX_ACTIVE_IMAGE_JOBS} 个图片生成任务正在运行，请等待部分任务完成后再试`)
     }
 
     const normalizedRequest = await this.normalizeRequest(request)
@@ -96,7 +104,7 @@ export class ImageGenerationService {
       importFailureCount: 0,
     }
 
-    this.activeJob = activeJob
+    this.activeJobs.set(jobId, activeJob)
     try {
       this.imageHistoryService.createTask({
         jobId,
@@ -109,9 +117,8 @@ export class ImageGenerationService {
       throw error
     }
     logger.info(
-      'image generation job created: jobId=%s owner=%d count=%d size=%s references=%d promptLength=%d',
-      jobId,
-      ownerWebContents.id,
+      '%s image generation job created: count=%d size=%s references=%d promptLength=%d',
+      this.formatJobLogContext(activeJob),
       normalizedRequest.count,
       normalizedRequest.size ?? 'default',
       normalizedRequest.references.length,
@@ -119,18 +126,17 @@ export class ImageGenerationService {
     )
 
     ownerWebContents.once('destroyed', () => {
-      if (this.activeJob?.jobId === jobId) {
-        logger.warn('owner webContents destroyed, terminating active image job: jobId=%s owner=%d', jobId, ownerWebContents.id)
-        this.terminateActiveJob('Owner webContents was destroyed')
-      }
+      this.terminateOwnerJobs(ownerWebContents.id, 'Owner webContents was destroyed')
     })
 
     // started 事件必须早于 Codex 子进程启动，否则 Codex 很快输出 thread.started 时，renderer 可能先收到后续事件。
     this.sendToOwner(activeJob, {
       type: IMAGE_GENERATION_EVENT_TYPES.started,
       jobId,
+      prompt: normalizedRequest.prompt,
       count: activeJob.expectedCount,
       size: normalizedRequest.size,
+      createdAt: activeJob.startedAt,
     })
 
     try {
@@ -173,7 +179,7 @@ export class ImageGenerationService {
       activeJob.startedAt = startedAt
       activeJob.status = 'running'
       this.startImageRecoveryTimer(activeJob)
-      logger.info('image generation job running: jobId=%s pid=%s', jobId, String(childProcess.pid ?? 'unknown'))
+      logger.info('%s image generation job running: pid=%s', this.formatJobLogContext(activeJob), String(childProcess.pid ?? 'unknown'))
 
       return { jobId }
     } catch (error) {
@@ -191,14 +197,14 @@ export class ImageGenerationService {
   }
 
   async cancelImageGeneration(jobId: string) {
-    const activeJob = this.activeJob
+    const activeJob = this.getActiveJob(jobId)
 
-    if (!activeJob || activeJob.jobId !== jobId) {
+    if (!activeJob) {
       logger.warn('ignored image generation cancel for inactive job: jobId=%s', jobId)
       return
     }
 
-    logger.info('cancelling image generation job by request: jobId=%s', jobId)
+    logger.info('%s cancelling image generation job by request', this.formatJobLogContext(activeJob))
     this.cancelActiveJob(activeJob, 'Image generation cancelled')
   }
 
@@ -218,7 +224,7 @@ export class ImageGenerationService {
     if (event.type === CODEX_STREAM_EVENT_TYPES.threadStarted) {
       activeJob.codexThreadId = event.threadId
       this.imageHistoryService.updateTaskCodexThreadId(jobId, event.threadId)
-      logger.info('codex thread started: jobId=%s codexThreadId=%s', jobId, event.threadId)
+      logger.info('%s codex thread started', this.formatJobLogContext(activeJob))
       this.sendToOwner(activeJob, {
         type: IMAGE_GENERATION_EVENT_TYPES.codexThreadStarted,
         jobId,
@@ -229,7 +235,7 @@ export class ImageGenerationService {
 
     if (event.type === CODEX_STREAM_EVENT_TYPES.message) {
       activeJob.lastMessage = event.text
-      logger.debug('codex message received: jobId=%s length=%d', jobId, event.text.length)
+      logger.debug('%s codex message received: length=%d', this.formatJobLogContext(activeJob), event.text.length)
       this.sendToOwner(activeJob, {
         type: IMAGE_GENERATION_EVENT_TYPES.message,
         jobId,
@@ -253,21 +259,24 @@ export class ImageGenerationService {
 
     if (activeJob.status === 'cancelling') {
       // 主动取消时，无论 Codex 最后 exit code 是什么，统一折叠成 cancelled 事件。
-      logger.info('codex process exited while cancelling: jobId=%s code=%s', jobId, String(code))
+      logger.info('%s codex process exited while cancelling: code=%s', this.formatJobLogContext(activeJob), String(code))
       this.sendCancellationEvent(activeJob)
       this.clearActiveJob(jobId)
       return
     }
 
     if (code !== 0) {
-      logger.error('codex process exited with failure: jobId=%s code=%s stderrTail=%s', jobId, String(code), stderrTail)
+      logger.error('%s codex process exited with failure: code=%s stderrTail=%s', this.formatJobLogContext(activeJob), String(code), stderrTail)
       this.handleCodexError(jobId, stderrTail || `codex exec exited with code ${code}`, 'process-crashed')
       return
     }
 
     // v2 核心收口：stdout 不再被视为图片结果来源。进程正常退出后统一读取 Codex session JSONL，
     // 再把恢复到的图片注册到 artpilot-image 协议并推送给 renderer。
-    await this.recoverImagesFromCodexSessions(activeJob, true)
+    await this.recoverImagesFromCodexSessions(activeJob, {
+      allowStartedAtFallback: true,
+      logEmptyResult: true,
+    })
 
     if (activeJob.imagePaths.length === 0) {
       this.handleCodexError(
@@ -303,8 +312,16 @@ export class ImageGenerationService {
     this.clearActiveJob(jobId)
   }
 
-  private recoverImagesFromCodexSessions(activeJob: ActiveImageGenerationJob, logEmptyResult = false) {
-    if (this.activeJob !== activeJob) {
+  private recoverImagesFromCodexSessions(activeJob: ActiveImageGenerationJob, options: {
+    allowStartedAtFallback?: boolean
+    logEmptyResult?: boolean
+  } = {}) {
+    if (this.activeJobs.get(activeJob.jobId) !== activeJob) {
+      return Promise.resolve()
+    }
+
+    if (!activeJob.codexThreadId && !options.allowStartedAtFallback) {
+      logger.debug('%s skipped image recovery without codexThreadId', this.formatJobLogContext(activeJob))
       return Promise.resolve()
     }
 
@@ -313,7 +330,7 @@ export class ImageGenerationService {
     }
 
     activeJob.isRecoveringImages = true
-    activeJob.recoveryPromise = this.doRecoverImagesFromCodexSessions(activeJob, logEmptyResult).finally(() => {
+    activeJob.recoveryPromise = this.doRecoverImagesFromCodexSessions(activeJob, Boolean(options.logEmptyResult)).finally(() => {
       activeJob.isRecoveringImages = false
       activeJob.recoveryPromise = undefined
     })
@@ -322,8 +339,7 @@ export class ImageGenerationService {
   }
 
   private async doRecoverImagesFromCodexSessions(activeJob: ActiveImageGenerationJob, logEmptyResult: boolean) {
-    // 优先使用 Codex threadId 精准读取本次任务的 session；如果 threadId 缺失，
-    // generatedImages 工具会退回到 startedAt 之后更新过的 session 文件，避免 stdout 解析失败时丢图。
+    // 优先使用 Codex threadId 精准读取本次任务的 session；并发运行时只有最终兜底才允许缺失 threadId。
     const { imagePaths: recoveredImagePaths, sessionPaths } = await findCodexGeneratedImagesFromSessions({
       sinceMs: activeJob.startedAt,
       threadId: activeJob.codexThreadId,
@@ -334,12 +350,11 @@ export class ImageGenerationService {
 
     if (newImagePaths.length === 0) {
       if (logEmptyResult && recoveredImagePaths.length === 0 && activeJob.imagePaths.length === 0) {
-        logger.warn('no image paths loaded from codex session files: jobId=%s codexThreadId=%s', activeJob.jobId, activeJob.codexThreadId ?? 'unknown')
+        logger.warn('%s no image paths loaded from codex session files', this.formatJobLogContext(activeJob))
       } else {
         logger.debug(
-          'no new image paths loaded from codex session files: jobId=%s codexThreadId=%s recovered=%d existing=%d',
-          activeJob.jobId,
-          activeJob.codexThreadId ?? 'unknown',
+          '%s no new image paths loaded from codex session files: recovered=%d existing=%d',
+          this.formatJobLogContext(activeJob),
           recoveredImagePaths.length,
           activeJob.imagePaths.length,
         )
@@ -348,38 +363,16 @@ export class ImageGenerationService {
       return
     }
 
-    logger.info('loaded image paths from codex session files: jobId=%s codexThreadId=%s count=%d', activeJob.jobId, activeJob.codexThreadId ?? 'unknown', newImagePaths.length)
+    logger.info('%s loaded image paths from codex session files: count=%d', this.formatJobLogContext(activeJob), newImagePaths.length)
 
     for (const imagePath of newImagePaths) {
-      activeJob.originalImagePaths.push(imagePath)
-      const index = activeJob.imagePaths.length + 1
-
       try {
-        const importedImage = await this.imageLibraryService.moveImageToLibrary({
-          jobId: activeJob.jobId,
-          index,
-          sourcePath: imagePath,
-          createdAt: activeJob.startedAt,
-        })
-
-        this.imageHistoryService.saveImportedImage(activeJob.jobId, importedImage)
-        activeJob.imagePaths.push(importedImage.libraryPath)
-        generatedImageRegistry.register(activeJob.jobId, index, importedImage.libraryPath)
-        this.sendToOwner(activeJob, {
-          type: IMAGE_GENERATION_EVENT_TYPES.imageFound,
-          jobId: activeJob.jobId,
-          imageId: importedImage.imageId,
-          codexThreadId: activeJob.codexThreadId,
-          index,
-          imagePath: importedImage.libraryPath,
-          imageUrl: generatedImageRegistry.createGeneratedImageUrl(activeJob.jobId, index),
-        })
-        await this.codexCleanupService.cleanupImportedImage(importedImage.imageId, importedImage.originalCodexPath)
+        await this.importRecoveredImage(activeJob, imagePath)
       } catch (error) {
         activeJob.importFailureCount += 1
         logger.error(
-          'failed to import recovered image: jobId=%s sourcePath=%s error=%s',
-          activeJob.jobId,
+          '%s failed to import recovered image: sourcePath=%s error=%s',
+          this.formatJobLogContext(activeJob),
           imagePath,
           error instanceof Error ? error.message : String(error),
         )
@@ -387,13 +380,68 @@ export class ImageGenerationService {
     }
   }
 
+  private async importRecoveredImage(activeJob: ActiveImageGenerationJob, imagePath: string) {
+    const index = activeJob.imagePaths.length + 1
+    const importedImage = await this.imageLibraryService.moveImageToLibrary({
+      jobId: activeJob.jobId,
+      index,
+      sourcePath: imagePath,
+      createdAt: activeJob.startedAt,
+    })
+
+    try {
+      this.imageHistoryService.saveImportedImage(activeJob.jobId, importedImage)
+    } catch (error) {
+      await this.rollbackMovedImage(activeJob, importedImage, error)
+      throw error
+    }
+
+    activeJob.originalImagePaths.push(imagePath)
+    activeJob.imagePaths.push(importedImage.libraryPath)
+    generatedImageRegistry.register(activeJob.jobId, index, importedImage.libraryPath)
+    this.sendToOwner(activeJob, {
+      type: IMAGE_GENERATION_EVENT_TYPES.imageFound,
+      jobId: activeJob.jobId,
+      imageId: importedImage.imageId,
+      codexThreadId: activeJob.codexThreadId,
+      index,
+      imagePath: importedImage.libraryPath,
+      imageUrl: generatedImageRegistry.createGeneratedImageUrl(activeJob.jobId, index),
+    })
+    await this.codexCleanupService.cleanupImportedImage(importedImage.imageId, importedImage.originalCodexPath)
+  }
+
+  private async rollbackMovedImage(activeJob: ActiveImageGenerationJob, importedImage: ImportedImage, cause: unknown) {
+    try {
+      await rename(importedImage.libraryPath, importedImage.originalCodexPath)
+      logger.warn(
+        '%s rolled back imported image after database error: source=%s library=%s cause=%s',
+        this.formatJobLogContext(activeJob),
+        importedImage.originalCodexPath,
+        importedImage.libraryPath,
+        cause instanceof Error ? cause.message : String(cause),
+      )
+    } catch (rollbackError) {
+      logger.warn(
+        '%s failed to rollback imported image after database error: source=%s library=%s cause=%s rollbackError=%s',
+        this.formatJobLogContext(activeJob),
+        importedImage.originalCodexPath,
+        importedImage.libraryPath,
+        cause instanceof Error ? cause.message : String(cause),
+        rollbackError instanceof Error ? rollbackError.message : String(rollbackError),
+      )
+    }
+  }
+
   private startImageRecoveryTimer(activeJob: ActiveImageGenerationJob) {
     activeJob.recoveryTimer = setInterval(() => {
-      if (this.activeJob !== activeJob || activeJob.status !== 'running') {
+      if (this.activeJobs.get(activeJob.jobId) !== activeJob || activeJob.status !== 'running') {
         return
       }
 
-      void this.recoverImagesFromCodexSessions(activeJob)
+      void this.recoverImagesFromCodexSessions(activeJob, {
+        allowStartedAtFallback: false,
+      })
     }, 2000)
   }
 
@@ -412,7 +460,7 @@ export class ImageGenerationService {
       return
     }
 
-    logger.error('image generation job failed: jobId=%s reason=%s error=%s', jobId, reason, error)
+    logger.error('%s image generation job failed: reason=%s error=%s', this.formatJobLogContext(activeJob), reason, error)
     if (reason === 'cancelled') {
       this.imageHistoryService.markTaskCancelled(jobId, error)
     } else {
@@ -430,26 +478,36 @@ export class ImageGenerationService {
 
   private cancelActiveJob(activeJob: ActiveImageGenerationJob, message: string) {
     if (activeJob.status === 'cancelling') {
-      logger.debug('cancel request ignored because job is already cancelling: jobId=%s', activeJob.jobId)
+      logger.debug('%s cancel request ignored because job is already cancelling', this.formatJobLogContext(activeJob))
       return
     }
 
     activeJob.status = 'cancelling'
     // 先给 Codex 一个正常退出机会；如果 3 秒内没有退出，再升级为 SIGKILL。
-    logger.info('sending SIGTERM to image generation process: jobId=%s pid=%s', activeJob.jobId, String(activeJob.childProcess?.pid ?? 'unknown'))
+    logger.info('%s sending SIGTERM to image generation process: pid=%s', this.formatJobLogContext(activeJob), String(activeJob.childProcess?.pid ?? 'unknown'))
     activeJob.childProcess?.kill('SIGTERM')
     activeJob.cleanupTimer = setTimeout(() => {
-      logger.warn('sending SIGKILL to image generation process after grace period: jobId=%s pid=%s', activeJob.jobId, String(activeJob.childProcess?.pid ?? 'unknown'))
+      logger.warn('%s sending SIGKILL to image generation process after grace period: pid=%s', this.formatJobLogContext(activeJob), String(activeJob.childProcess?.pid ?? 'unknown'))
       activeJob.childProcess?.kill('SIGKILL')
       this.sendCancellationEvent(activeJob, message)
       this.clearActiveJob(activeJob.jobId)
     }, 3000)
   }
 
-  private terminateActiveJob(message: string) {
-    if (this.activeJob) {
-      logger.info('terminating active image generation job: jobId=%s message=%s', this.activeJob.jobId, message)
-      this.cancelActiveJob(this.activeJob, message)
+  private terminateActiveJobs(message: string) {
+    logger.info('terminating active image generation jobs: count=%d message=%s', this.activeJobs.size, message)
+
+    for (const activeJob of this.activeJobs.values()) {
+      this.cancelActiveJob(activeJob, message)
+    }
+  }
+
+  private terminateOwnerJobs(ownerWebContentsId: number, message: string) {
+    for (const activeJob of this.activeJobs.values()) {
+      if (activeJob.ownerWebContentsId === ownerWebContentsId) {
+        logger.warn('%s owner webContents destroyed, terminating image job', this.formatJobLogContext(activeJob))
+        this.cancelActiveJob(activeJob, message)
+      }
     }
   }
 
@@ -459,7 +517,7 @@ export class ImageGenerationService {
     }
 
     activeJob.cancellationEventSent = true
-    logger.info('sending image generation cancellation event: jobId=%s message=%s', activeJob.jobId, message)
+    logger.info('%s sending image generation cancellation event: message=%s', this.formatJobLogContext(activeJob), message)
     this.imageHistoryService.markTaskCancelled(activeJob.jobId, message)
     this.sendToOwner(activeJob, {
       type: IMAGE_GENERATION_EVENT_TYPES.error,
@@ -484,29 +542,36 @@ export class ImageGenerationService {
   }
 
   private getActiveJob(jobId: string) {
-    if (this.activeJob?.jobId !== jobId) {
-      return null
-    }
-
-    return this.activeJob
+    return this.activeJobs.get(jobId) ?? null
   }
 
   private clearActiveJob(jobId: string) {
-    if (this.activeJob?.jobId !== jobId) {
+    const activeJob = this.activeJobs.get(jobId)
+
+    if (!activeJob) {
       return
     }
 
-    if (this.activeJob.cleanupTimer) {
-      clearTimeout(this.activeJob.cleanupTimer)
+    if (activeJob.cleanupTimer) {
+      clearTimeout(activeJob.cleanupTimer)
     }
 
-    if (this.activeJob.recoveryTimer) {
-      clearInterval(this.activeJob.recoveryTimer)
+    if (activeJob.recoveryTimer) {
+      clearInterval(activeJob.recoveryTimer)
     }
 
     // 不清 generatedImageRegistry：renderer 可能在 complete 后继续用 imageUrl 展示刚生成的图片。
-    logger.info('cleared active image generation job: jobId=%s images=%d', jobId, this.activeJob.imagePaths.length)
-    this.activeJob = null
+    this.activeJobs.delete(jobId)
+    logger.info('%s cleared active image generation job: images=%d', this.formatJobLogContext(activeJob), activeJob.imagePaths.length)
+
+    if (this.isQuitting && this.activeJobs.size === 0) {
+      this.quitAfterActiveJobsTerminated = true
+      app.quit()
+    }
+  }
+
+  private formatJobLogContext(activeJob: ActiveImageGenerationJob) {
+    return `jobId=${activeJob.jobId} owner=${activeJob.ownerWebContentsId} thread=${activeJob.codexThreadId ?? 'unknown'} activeJobs=${this.activeJobs.size}`
   }
 
   private async normalizeRequest(request: ImageGenerationRequest) {

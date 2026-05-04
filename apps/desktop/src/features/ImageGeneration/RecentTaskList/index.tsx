@@ -9,6 +9,18 @@ export function RecentTaskList({
   tasks: RecentTask[]
   onCancelTask: (jobId: string) => void | Promise<void>
 }) {
+  async function openImageLocation(imagePath?: string) {
+    if (!imagePath) {
+      return
+    }
+
+    try {
+      await window.api.openImageFileLocation(imagePath)
+    } catch (error) {
+      console.error('Failed to open image file location:', error)
+    }
+  }
+
   return (
     <aside className="flex min-h-0 flex-col rounded-lg p-4">
       <div className="mb-2 flex items-center justify-between">
@@ -34,6 +46,7 @@ export function RecentTaskList({
               prompt={task.prompt}
               status={task.status}
               onCancel={() => onCancelTask(task.jobId)}
+              onOpenImageLocation={(image) => openImageLocation(image.imagePath)}
             />
           ))}
         </div>

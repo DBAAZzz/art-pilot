@@ -183,6 +183,15 @@ export class ImageHistoryService {
     return historyTasks
   }
 
+  hasImportedImagePath(imagePath: string) {
+    const row = this.databaseService
+      .getConnection()
+      .prepare('SELECT 1 FROM generated_images WHERE library_path = ? LIMIT 1')
+      .get(imagePath)
+
+    return Boolean(row)
+  }
+
   private updateTaskStatus(jobId: string, status: GenerationTaskStatus, error?: string) {
     logger.info('updating image task status: jobId=%s status=%s hasError=%s', jobId, status, String(Boolean(error)))
     this.databaseService

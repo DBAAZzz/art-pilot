@@ -52,6 +52,9 @@ contextBridge.exposeInMainWorld('api', {
   openImageLibraryFolder: () => {
     return ipcRenderer.invoke(IPC_CHANNELS.imageHistory.openLibraryFolder)
   },
+  openImageFileLocation: (imagePath: string) => {
+    return ipcRenderer.invoke(IPC_CHANNELS.imageHistory.openImageFileLocation, imagePath)
+  },
   toggleWindowMaximize: () => {
     return ipcRenderer.invoke(IPC_CHANNELS.window.toggleMaximize)
   },

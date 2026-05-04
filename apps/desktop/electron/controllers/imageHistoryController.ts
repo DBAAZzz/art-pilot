@@ -1,5 +1,6 @@
 import { shell, ipcMain } from 'electron'
-import { mkdir } from 'node:fs/promises'
+import { mkdir, stat } from 'node:fs/promises'
+import path from 'node:path'
 import { IPC_CHANNELS } from '@art-pilot/shared'
 import type { Controller } from './baseController'
 import type { ImageHistoryService } from '../services/imageHistoryService'
@@ -32,5 +33,31 @@ export class ImageHistoryController implements Controller {
 
       logger.info('opened image library folder: path=%s', imageLibraryPath)
     })
+
+    ipcMain.handle(IPC_CHANNELS.imageHistory.openImageFileLocation, async (_event, imagePath: string) => {
+      const normalizedImagePath = await this.validateImageLibraryFilePath(imagePath)
+      shell.showItemInFolder(normalizedImagePath)
+      logger.info('opened image file location: path=%s', normalizedImagePath)
+    })
+  }
+
+  private async validateImageLibraryFilePath(imagePath: string) {
+    if (typeof imagePath !== 'string' || imagePath.trim().length === 0) {
+      throw new Error('图片路径不能为空')
+    }
+
+    const normalizedImagePath = path.resolve(imagePath)
+
+    if (!this.imageHistoryService.hasImportedImagePath(normalizedImagePath)) {
+      throw new Error('只能打开已生成图片的位置')
+    }
+
+    const fileStat = await stat(normalizedImagePath)
+
+    if (!fileStat.isFile()) {
+      throw new Error('图片路径必须指向文件')
+    }
+
+    return normalizedImagePath
   }
 }

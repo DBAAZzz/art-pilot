@@ -22,5 +22,6 @@ export interface ElectronApi {
   selectImageLibraryFolder: (currentPath?: string) => Promise<string | null>
   listRecentImageTasks: (limit?: number) => Promise<ImageHistoryTask[]>
   openImageLibraryFolder: () => Promise<void>
+  openImageFileLocation: (imagePath: string) => Promise<void>
   toggleWindowMaximize: () => Promise<void>
 }

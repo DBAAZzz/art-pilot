@@ -20,6 +20,7 @@ export const IPC_CHANNELS = {
   imageHistory: {
     listRecent: 'image-history:list-recent',
     openLibraryFolder: 'image-history:open-library-folder',
+    openImageFileLocation: 'image-history:open-image-file-location',
   },
   window: {
     toggleMaximize: 'window:toggle-maximize',

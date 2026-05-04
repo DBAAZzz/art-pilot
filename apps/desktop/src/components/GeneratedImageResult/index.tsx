@@ -1,4 +1,4 @@
-import { AlertCircle, Check, CircleX, ImageOff, ImagePlus, Loader2 } from 'lucide-react'
+import { AlertCircle, Check, CircleX, FolderOpen, ImageOff, ImagePlus, Loader2 } from 'lucide-react'
 
 import { ImagePreviewOverlay } from '@/components/ImagePreviewOverlay'
 import { cn } from '@/lib/utils'
@@ -23,6 +23,7 @@ export function GeneratedImageResult({
   images,
   message,
   onCancel,
+  onOpenImageLocation,
   prompt,
   status,
 }: {
@@ -35,6 +36,7 @@ export function GeneratedImageResult({
   images: GeneratedImageResultImage[]
   message?: string
   onCancel?: () => void | Promise<void>
+  onOpenImageLocation?: (image: GeneratedImageResultImage) => void | Promise<void>
   prompt: string
   status: GeneratedImageResultStatus
 }) {
@@ -70,18 +72,36 @@ export function GeneratedImageResult({
                 key={image?.index ?? `placeholder-${slotIndex}`}
               >
                 {image ? (
-                  <button
-                    aria-label={`预览图片 ${getImageDisplayIndex(image.index, images)}`}
-                    className="block size-full cursor-pointer overflow-hidden rounded-lg"
-                    type="button"
-                    onClick={() => imagePreview.openPreview(image)}
-                  >
-                    <img
-                      alt={`${prompt}，图片 ${getImageDisplayIndex(image.index, images)}`}
-                      className="size-full object-cover transition-transform hover:scale-[1.02]"
-                      src={image.imageUrl}
-                    />
-                  </button>
+                  <div className="group relative size-full overflow-hidden rounded-lg">
+                    <button
+                      aria-label={`预览图片 ${getImageDisplayIndex(image.index, images)}`}
+                      className="block size-full cursor-pointer overflow-hidden rounded-lg"
+                      type="button"
+                      onClick={() => imagePreview.openPreview(image)}
+                    >
+                      <img
+                        alt={`${prompt}，图片 ${getImageDisplayIndex(image.index, images)}`}
+                        className="size-full object-cover transition-transform group-hover:scale-[1.02]"
+                        src={image.imageUrl}
+                      />
+                    </button>
+                    {image.imagePath && onOpenImageLocation ? (
+                      <div className="pointer-events-none absolute inset-x-0 bottom-0 flex h-14 items-end justify-end bg-gradient-to-t from-text-strong/55 to-text-strong/0 p-2 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+                        <button
+                          aria-label={`打开图片 ${getImageDisplayIndex(image.index, images)} 所在文件夹`}
+                          className="pointer-events-auto flex size-8 cursor-pointer items-center justify-center rounded-lg bg-background-solid/15 text-background-solid transition-colors hover:bg-background-solid/25"
+                          title="打开所在文件夹"
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation()
+                            void onOpenImageLocation(image)
+                          }}
+                        >
+                          <FolderOpen className="size-4" strokeWidth={1.8} />
+                        </button>
+                      </div>
+                    ) : null}
+                  </div>
                 ) : (
                   <div className="flex size-full items-center justify-center text-base text-text-muted">
                     <PlaceholderIcon status={status} />

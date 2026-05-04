@@ -1,4 +1,6 @@
 import { AlertCircle, Check, CircleX, FolderOpen, ImageOff, ImagePlus, Loader2 } from 'lucide-react'
+import type { ImageReference } from '@art-pilot/shared'
+import { useMemo } from 'react'
 
 import { ImagePreviewOverlay } from '@/components/ImagePreviewOverlay'
 import { cn } from '@/lib/utils'
@@ -25,6 +27,7 @@ export function GeneratedImageResult({
   onCancel,
   onOpenImageLocation,
   prompt,
+  references = [],
   status,
 }: {
   aspectRatio: string
@@ -38,10 +41,16 @@ export function GeneratedImageResult({
   onCancel?: () => void | Promise<void>
   onOpenImageLocation?: (image: GeneratedImageResultImage) => void | Promise<void>
   prompt: string
+  references?: ImageReference[]
   status: GeneratedImageResultStatus
 }) {
   const imageSlots = createImageSlots(images, count)
   const imagePreview = useImagePreview(images)
+  const referencePreviewImages = useMemo(
+    () => createReferencePreviewImages(references),
+    [references],
+  )
+  const referencePreview = useImagePreview(referencePreviewImages)
   const shouldShowImageGrid = status === 'running' || images.length > 0
 
   return (
@@ -62,7 +71,12 @@ export function GeneratedImageResult({
         </div>
 
         {message && status === 'running' ? <p className="mb-3 line-clamp-2 text-base text-text-muted">{message}</p> : null}
-        {error ? <p className={cn('line-clamp-2 text-base text-text-error', shouldShowImageGrid && 'mb-3')}>{error}</p> : null}
+        {error ? (
+          <p className={cn('line-clamp-2 text-base text-text-error', (shouldShowImageGrid || references.length > 0) && 'mb-3')}>
+            {error}
+          </p>
+        ) : null}
+        {references.length > 0 ? <ReferenceImageStrip references={references} onPreviewReference={referencePreview.openPreview} /> : null}
 
         {shouldShowImageGrid ? (
           <div className={getImageGridClassName(imageSlots.length)}>
@@ -129,8 +143,96 @@ export function GeneratedImageResult({
           zoom={imagePreview.zoom}
         />
       ) : null}
+
+      {referencePreview.isOpen && referencePreview.previewImage ? (
+        <ImagePreviewOverlay
+          currentPosition={referencePreview.currentPosition}
+          image={referencePreview.previewImage}
+          imageCount={referencePreview.imageCount}
+          prompt="参考图"
+          onClose={referencePreview.closePreview}
+          onNext={referencePreview.showNext}
+          onPrevious={referencePreview.showPrevious}
+          onResetZoom={referencePreview.resetZoom}
+          onZoomByDelta={referencePreview.zoomByDelta}
+          onZoomIn={referencePreview.zoomIn}
+          onZoomOut={referencePreview.zoomOut}
+          zoom={referencePreview.zoom}
+        />
+      ) : null}
     </>
   )
+}
+
+function ReferenceImageStrip({
+  references,
+  onPreviewReference,
+}: {
+  references: ImageReference[]
+  onPreviewReference: (image: GeneratedImageResultImage) => void
+}) {
+  return (
+    <div className="mb-3">
+      <p className="mb-2 text-base text-text-muted">参考图 {references.length}</p>
+      <div className="flex min-w-0 gap-2 overflow-x-auto pb-1">
+        {references.map((reference, index) => (
+          <button
+            aria-label={`预览参考图 ${index + 1}${reference.name ? `，${reference.name}` : ''}`}
+            className={cn(
+              'group relative size-14 shrink-0 overflow-hidden rounded-lg bg-background-subtle',
+              reference.imageUrl ? 'cursor-pointer' : 'cursor-default',
+            )}
+            disabled={!reference.imageUrl}
+            key={reference.id || `${reference.path}-${index}`}
+            title={reference.name ?? reference.path}
+            type="button"
+            onClick={() => {
+              if (!reference.imageUrl) {
+                return
+              }
+
+              onPreviewReference({
+                index,
+                imageUrl: reference.imageUrl,
+                imagePath: reference.path,
+              })
+            }}
+          >
+            {reference.imageUrl ? (
+              <img
+                alt={`参考图 ${index + 1}${reference.name ? `，${reference.name}` : ''}`}
+                className="size-full object-cover transition-transform group-hover:scale-[1.03]"
+                src={reference.imageUrl}
+              />
+            ) : (
+              <div className="flex size-full items-center justify-center text-text-muted">
+                <ImagePlus className="size-5" strokeWidth={1.8} />
+              </div>
+            )}
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-text-strong/55 px-1 py-0.5 text-center text-[10px] leading-tight text-background-solid opacity-0 transition-opacity group-hover:opacity-100">
+              {index + 1}
+            </div>
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function createReferencePreviewImages(references: ImageReference[]): GeneratedImageResultImage[] {
+  return references.flatMap((reference, index) => {
+    if (!reference.imageUrl) {
+      return []
+    }
+
+    return [
+      {
+        index,
+        imageUrl: reference.imageUrl,
+        imagePath: reference.path,
+      },
+    ]
+  })
 }
 
 function TaskAction({

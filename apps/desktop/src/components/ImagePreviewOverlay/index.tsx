@@ -1,5 +1,6 @@
 import { ChevronLeft, ChevronRight, Minus, RotateCcw, Plus, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 
 export type ImagePreviewOverlayImage = {
   imageUrl: string
@@ -58,11 +59,11 @@ export function ImagePreviewOverlay({
     onResetZoom()
   }
 
-  return (
+  return createPortal(
     <div
       aria-label="图片预览"
       aria-modal="true"
-      className="fixed inset-0 z-50 overflow-hidden bg-text-strong/85"
+      className="window-no-drag fixed inset-0 z-[1000] overflow-hidden bg-text-strong/85"
       role="dialog"
       onClick={onClose}
       onWheel={(event) => {
@@ -205,7 +206,8 @@ export function ImagePreviewOverlay({
           <Plus className="size-4" strokeWidth={1.8} />
         </button>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
 

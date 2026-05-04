@@ -1,4 +1,9 @@
-import type { GenerationTaskStatus, ImageGenerationRequest, ImageHistoryTask } from '@art-pilot/shared'
+import type {
+  GenerationTaskStatus,
+  ImageGenerationRequest,
+  ImageHistoryTask,
+  ImageReference,
+} from '@art-pilot/shared'
 import type { DatabaseService } from './databaseService'
 import type { ImportedImage } from './imageLibraryService'
 import { generatedImageRegistry } from '../protocols/generatedImageRegistry'
@@ -12,6 +17,7 @@ type TaskRow = {
   prompt: string
   count: number
   size: string | null
+  references_json: string | null
   status: GenerationTaskStatus
   error: string | null
   created_at: number
@@ -52,10 +58,17 @@ export class ImageHistoryService {
     this.databaseService
       .getConnection()
       .prepare(`
-        INSERT INTO generation_tasks (id, prompt, count, size, status, created_at)
-        VALUES (?, ?, ?, ?, 'running', ?)
+        INSERT INTO generation_tasks (id, prompt, count, size, references_json, status, created_at)
+        VALUES (?, ?, ?, ?, ?, 'running', ?)
       `)
-      .run(input.jobId, input.request.prompt, input.count, input.request.size ?? null, input.createdAt)
+      .run(
+        input.jobId,
+        input.request.prompt,
+        input.count,
+        input.request.size ?? null,
+        serializeReferences(input.request.references ?? []),
+        input.createdAt,
+      )
   }
 
   updateTaskCodexThreadId(jobId: string, codexThreadId: string) {
@@ -158,6 +171,14 @@ export class ImageHistoryService {
       error: task.error ?? undefined,
       createdAt: task.created_at,
       completedAt: task.completed_at ?? undefined,
+      references: parseReferences(task.references_json).map((reference, index) => {
+        generatedImageRegistry.registerReference(task.id, index, reference.path)
+
+        return {
+          ...reference,
+          imageUrl: generatedImageRegistry.createReferenceImageUrl(task.id, index),
+        }
+      }),
       images: (imagesByTaskId.get(task.id) ?? []).map((image) => {
         generatedImageRegistry.register(task.id, image.image_index, image.library_path)
 
@@ -199,4 +220,52 @@ export class ImageHistoryService {
       .prepare('UPDATE generation_tasks SET status = ?, error = ?, completed_at = ? WHERE id = ?')
       .run(status, error ?? null, Date.now(), jobId)
   }
+}
+
+function serializeReferences(references: ImageReference[]) {
+  if (references.length === 0) {
+    return null
+  }
+
+  return JSON.stringify(references.map(({ id, kind, path, name, mimeType }) => ({
+    id,
+    kind,
+    path,
+    name,
+    mimeType,
+  })))
+}
+
+function parseReferences(referencesJson: string | null): ImageReference[] {
+  if (!referencesJson) {
+    return []
+  }
+
+  try {
+    const parsedReferences = JSON.parse(referencesJson)
+
+    if (!Array.isArray(parsedReferences)) {
+      return []
+    }
+
+    return parsedReferences.filter(isImageReference)
+  } catch {
+    return []
+  }
+}
+
+function isImageReference(reference: unknown): reference is ImageReference {
+  if (!reference || typeof reference !== 'object') {
+    return false
+  }
+
+  const candidate = reference as Partial<ImageReference>
+
+  return (
+    typeof candidate.id === 'string'
+    && candidate.kind === 'local-file'
+    && typeof candidate.path === 'string'
+    && (candidate.name === undefined || typeof candidate.name === 'string')
+    && (candidate.mimeType === undefined || typeof candidate.mimeType === 'string')
+  )
 }

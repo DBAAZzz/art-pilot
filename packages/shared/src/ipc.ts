@@ -11,6 +11,8 @@ export const IPC_CHANNELS = {
     generateStart: 'image:generate-start',
     generationEvent: 'image:generation-event',
     cancel: 'image:cancel',
+    selectReferences: 'image:select-references',
+    pasteReferences: 'image:paste-references',
   },
   settings: {
     get: 'settings:get',

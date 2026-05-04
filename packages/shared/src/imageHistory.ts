@@ -1,4 +1,4 @@
-import type { ImageGenerationSize } from './imageGeneration'
+import type { ImageGenerationSize, ImageReference } from './imageGeneration'
 
 export type GenerationTaskStatus = 'running' | 'complete' | 'error' | 'cancelled'
 
@@ -27,5 +27,6 @@ export type ImageHistoryTask = {
   error?: string
   createdAt: number
   completedAt?: number
+  references: ImageReference[]
   images: ImageHistoryImage[]
 }

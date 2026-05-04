@@ -44,6 +44,7 @@ export function RecentTaskList({
               images={task.images}
               message={task.message}
               prompt={task.prompt}
+              references={task.references}
               status={task.status}
               onCancel={() => onCancelTask(task.jobId)}
               onOpenImageLocation={(image) => openImageLocation(image.imagePath)}

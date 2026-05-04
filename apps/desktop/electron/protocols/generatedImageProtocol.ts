@@ -24,45 +24,79 @@ export function registerGeneratedImageProtocolScheme() {
 export function registerGeneratedImageProtocolHandler() {
   logger.info('registering generated image protocol handler: scheme=%s', GENERATED_IMAGE_SCHEME)
   protocol.handle(GENERATED_IMAGE_SCHEME, async (request) => {
-    const parsedUrl = parseGeneratedImageUrl(request.url)
+    const parsedUrl = parseImageProtocolUrl(request.url)
 
     if (!parsedUrl) {
-      logger.warn('rejected generated image request with invalid URL: url=%s', request.url)
-      return new Response('Invalid generated image URL', { status: 400 })
+      logger.warn('rejected image request with invalid URL: url=%s', request.url)
+      return new Response('Invalid image URL', { status: 400 })
     }
 
-    const imagePath = generatedImageRegistry.get(parsedUrl.jobId, parsedUrl.index)
+    const imagePath = getRegisteredImagePath(parsedUrl)
 
     if (!imagePath) {
       logger.warn(
-        'generated image request missed registry: jobId=%s index=%d',
-        parsedUrl.jobId,
-        parsedUrl.index,
+        'image request missed registry: kind=%s jobId=%s index=%d',
+        parsedUrl.kind,
+        'jobId' in parsedUrl ? parsedUrl.jobId : parsedUrl.referenceId,
+        'index' in parsedUrl ? parsedUrl.index : 0,
       )
-      return new Response('Generated image not found', { status: 404 })
+      return new Response('Image not found', { status: 404 })
     }
 
     if (!(await isAllowedGeneratedImagePath(imagePath))) {
       logger.warn(
-        'blocked generated image path outside allowed directories: jobId=%s index=%d path=%s',
-        parsedUrl.jobId,
-        parsedUrl.index,
+        'blocked image path outside allowed directories: kind=%s jobId=%s index=%d path=%s',
+        parsedUrl.kind,
+        'jobId' in parsedUrl ? parsedUrl.jobId : parsedUrl.referenceId,
+        'index' in parsedUrl ? parsedUrl.index : 0,
         imagePath,
       )
-      return new Response('Generated image path is not allowed', { status: 403 })
+      return new Response('Image path is not allowed', { status: 403 })
     }
 
-    logger.debug('serving generated image: jobId=%s index=%d path=%s', parsedUrl.jobId, parsedUrl.index, imagePath)
+    logger.debug('serving image: kind=%s path=%s', parsedUrl.kind, imagePath)
     return net.fetch(pathToFileURL(imagePath).toString())
   })
 }
 
-function parseGeneratedImageUrl(url: string) {
+function getRegisteredImagePath(parsedUrl: ImageProtocolUrl) {
+  if (parsedUrl.kind === 'generated') {
+    return generatedImageRegistry.get(parsedUrl.jobId, parsedUrl.index)
+  }
+
+  if (parsedUrl.kind === 'reference') {
+    return generatedImageRegistry.getReference(parsedUrl.jobId, parsedUrl.index)
+  }
+
+  return generatedImageRegistry.getDraftReference(parsedUrl.referenceId)
+}
+
+function parseImageProtocolUrl(url: string) {
   try {
     const parsedUrl = new URL(url)
 
-    if (parsedUrl.protocol !== `${GENERATED_IMAGE_SCHEME}:` || parsedUrl.hostname !== 'generated') {
+    if (
+      parsedUrl.protocol !== `${GENERATED_IMAGE_SCHEME}:`
+      || (
+        parsedUrl.hostname !== 'generated'
+        && parsedUrl.hostname !== 'reference'
+        && parsedUrl.hostname !== 'reference-draft'
+      )
+    ) {
       return null
+    }
+
+    if (parsedUrl.hostname === 'reference-draft') {
+      const [encodedReferenceId] = parsedUrl.pathname.split('/').filter(Boolean)
+
+      if (!encodedReferenceId) {
+        return null
+      }
+
+      return {
+        kind: 'reference-draft' as const,
+        referenceId: decodeURIComponent(encodedReferenceId),
+      }
     }
 
     const [encodedJobId, indexValue] = parsedUrl.pathname.split('/').filter(Boolean)
@@ -73,6 +107,7 @@ function parseGeneratedImageUrl(url: string) {
     }
 
     return {
+      kind: parsedUrl.hostname as 'generated' | 'reference',
       jobId: decodeURIComponent(encodedJobId),
       index,
     }
@@ -80,6 +115,22 @@ function parseGeneratedImageUrl(url: string) {
     return null
   }
 }
+
+type ImageProtocolUrl =
+  | {
+      kind: 'generated'
+      jobId: string
+      index: number
+    }
+  | {
+      kind: 'reference'
+      jobId: string
+      index: number
+    }
+  | {
+      kind: 'reference-draft'
+      referenceId: string
+    }
 
 async function isAllowedGeneratedImagePath(imagePath: string) {
   try {

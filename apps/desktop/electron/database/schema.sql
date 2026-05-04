@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS generation_tasks (
   prompt TEXT NOT NULL,
   count INTEGER NOT NULL,
   size TEXT,
+  references_json TEXT,
   status TEXT NOT NULL,
   error TEXT,
   created_at INTEGER NOT NULL,

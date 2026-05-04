@@ -4,12 +4,18 @@ import { constants } from 'node:fs'
 import { access, rename, stat } from 'node:fs/promises'
 import path from 'node:path'
 import { randomUUID } from 'node:crypto'
-import { IMAGE_GENERATION_EVENT_TYPES, IPC_CHANNELS } from '@art-pilot/shared'
+import {
+  IMAGE_GENERATION_EVENT_TYPES,
+  IPC_CHANNELS,
+  MAX_IMAGE_REFERENCES,
+  MAX_IMAGE_REFERENCE_FILE_SIZE,
+} from '@art-pilot/shared'
 import type {
   ImageGenerationErrorReason,
   ImageGenerationEvent,
   ImageGenerationRequest,
   ImageGenerationStartResult,
+  ImageReference,
 } from '@art-pilot/shared'
 import { generatedImageRegistry } from '../protocols/generatedImageRegistry'
 import type { CodexImageProvider } from '../providers/codexImageProvider'
@@ -89,6 +95,10 @@ export class ImageGenerationService {
 
     const normalizedRequest = await this.normalizeRequest(request)
     const jobId = randomUUID()
+    const taskRequest = {
+      ...normalizedRequest,
+      references: attachReferenceImageUrls(jobId, normalizedRequest.references),
+    }
     // 先创建 activeJob，再启动 Codex；这样即使启动阶段失败，也能向同一个 owner 推送 error。
     const activeJob: ActiveImageGenerationJob = {
       jobId,
@@ -108,7 +118,7 @@ export class ImageGenerationService {
     try {
       this.imageHistoryService.createTask({
         jobId,
-        request: normalizedRequest,
+        request: taskRequest,
         count: activeJob.expectedCount,
         createdAt: activeJob.startedAt,
       })
@@ -133,16 +143,17 @@ export class ImageGenerationService {
     this.sendToOwner(activeJob, {
       type: IMAGE_GENERATION_EVENT_TYPES.started,
       jobId,
-      prompt: normalizedRequest.prompt,
+      prompt: taskRequest.prompt,
       count: activeJob.expectedCount,
-      size: normalizedRequest.size,
+      size: taskRequest.size,
+      references: taskRequest.references,
       createdAt: activeJob.startedAt,
     })
 
     try {
       // Provider 只负责启动 Codex 和解析 stdout 生命周期事件；图片结果由 service 在退出后读取 session JSONL。
       const { childProcess, startedAt } = await this.codexImageProvider.generateStreaming(
-        normalizedRequest,
+        taskRequest,
         {
           onEvent: (event) => this.handleCodexEvent(jobId, event),
           onExit: (result) => {
@@ -584,6 +595,10 @@ export class ImageGenerationService {
     const references = request.references ?? []
     logger.debug('validating image generation request: promptLength=%d references=%d', prompt.length, references.length)
 
+    if (references.length > MAX_IMAGE_REFERENCES) {
+      throw new Error(`参考图最多支持 ${MAX_IMAGE_REFERENCES} 张`)
+    }
+
     for (const reference of references) {
       logger.debug('validating image reference: id=%s path=%s', reference.id, reference.path)
       await validateReference(reference.path)
@@ -612,6 +627,10 @@ async function validateReference(filePath: string) {
   if (!fileStat.isFile()) {
     throw new Error('参考图路径必须指向文件')
   }
+
+  if (fileStat.size > MAX_IMAGE_REFERENCE_FILE_SIZE) {
+    throw new Error(`参考图文件不能超过 ${Math.trunc(MAX_IMAGE_REFERENCE_FILE_SIZE / 1024 / 1024)}MB`)
+  }
 }
 
 function normalizeImageCount(count: number | undefined) {
@@ -620,4 +639,15 @@ function normalizeImageCount(count: number | undefined) {
   }
 
   return Math.min(Math.max(Math.trunc(count), 1), MAX_IMAGE_COUNT)
+}
+
+function attachReferenceImageUrls(jobId: string, references: ImageReference[]) {
+  return references.map((reference, index) => {
+    generatedImageRegistry.registerReference(jobId, index, reference.path)
+
+    return {
+      ...reference,
+      imageUrl: reference.imageUrl ?? generatedImageRegistry.createReferenceImageUrl(jobId, index),
+    }
+  })
 }

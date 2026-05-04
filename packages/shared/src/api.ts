@@ -1,6 +1,11 @@
 import type { CodexEnvironment, CodexUsageSummary } from './codex'
 import type { ImageHistoryTask } from './imageHistory'
-import type { ImageGenerationEvent, ImageGenerationRequest, ImageGenerationStartResult } from './imageGeneration'
+import type {
+  ImageGenerationEvent,
+  ImageGenerationRequest,
+  ImageGenerationStartResult,
+  ImageReference,
+} from './imageGeneration'
 import type { AppSettings, UpdateAppSettingsRequest } from './settings'
 
 export interface VersionsApi {
@@ -17,6 +22,9 @@ export interface ElectronApi {
   startImageGeneration: (request: ImageGenerationRequest) => Promise<ImageGenerationStartResult>
   onImageGenerationEvent: (callback: (event: ImageGenerationEvent) => void) => () => void
   cancelImageGeneration: (jobId: string) => Promise<void>
+  selectImageReferences: () => Promise<ImageReference[]>
+  pasteImageReferencesFromClipboard: () => Promise<ImageReference[]>
+  getPathForFile: (file: File) => string
   getSettings: () => Promise<AppSettings>
   updateSettings: (settings: UpdateAppSettingsRequest) => Promise<AppSettings>
   selectImageLibraryFolder: (currentPath?: string) => Promise<string | null>

@@ -43,6 +43,18 @@ export class DatabaseService {
   private runMigrations(database: Database.Database) {
     // v1 采用幂等建表：开发环境和用户升级时重复启动不会破坏已有数据。
     database.exec(databaseSchema)
+    this.ensureColumn(database, 'generation_tasks', 'references_json', 'TEXT')
     logger.info('database schema ensured')
+  }
+
+  private ensureColumn(database: Database.Database, tableName: string, columnName: string, columnDefinition: string) {
+    const columns = database.prepare(`PRAGMA table_info(${tableName})`).all() as Array<{ name: string }>
+
+    if (columns.some((column) => column.name === columnName)) {
+      return
+    }
+
+    database.exec(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${columnDefinition}`)
+    logger.info('added database column: table=%s column=%s', tableName, columnName)
   }
 }

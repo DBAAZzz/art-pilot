@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from 'electron'
+import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import { IPC_CHANNELS } from '@art-pilot/shared'
 import type { ImageGenerationEvent, ImageGenerationRequest } from '@art-pilot/shared'
 import type { UpdateAppSettingsRequest } from '@art-pilot/shared'
@@ -36,6 +36,15 @@ contextBridge.exposeInMainWorld('api', {
   },
   cancelImageGeneration: (jobId: string) => {
     return ipcRenderer.invoke(IPC_CHANNELS.image.cancel, jobId)
+  },
+  selectImageReferences: () => {
+    return ipcRenderer.invoke(IPC_CHANNELS.image.selectReferences)
+  },
+  pasteImageReferencesFromClipboard: () => {
+    return ipcRenderer.invoke(IPC_CHANNELS.image.pasteReferences)
+  },
+  getPathForFile: (file: File) => {
+    return webUtils.getPathForFile(file)
   },
   getSettings: () => {
     return ipcRenderer.invoke(IPC_CHANNELS.settings.get)

@@ -12,12 +12,16 @@ export type ImageGenerationEventType =
 
 export type ImageGenerationSize = 'auto' | '1024x1024' | '1536x1024' | '1024x1536'
 
+export const MAX_IMAGE_REFERENCES = 5
+export const MAX_IMAGE_REFERENCE_FILE_SIZE = 50 * 1024 * 1024
+
 export type ImageReference = {
   id: string
   kind: 'local-file'
   path: string
   name?: string
   mimeType?: string
+  imageUrl?: string
 }
 
 export type ImageGenerationRequest = {
@@ -43,6 +47,7 @@ export type ImageGenerationEvent =
       prompt: string
       count: number
       size?: ImageGenerationSize
+      references?: ImageReference[]
       createdAt: number
     }
   | {

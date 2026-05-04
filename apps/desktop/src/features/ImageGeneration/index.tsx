@@ -1,5 +1,5 @@
-import { IMAGE_GENERATION_EVENT_TYPES } from '@art-pilot/shared'
-import type { ImageGenerationEvent, ImageGenerationSize, ImageHistoryTask } from '@art-pilot/shared'
+import { IMAGE_GENERATION_EVENT_TYPES, MAX_IMAGE_REFERENCES } from '@art-pilot/shared'
+import type { ImageGenerationEvent, ImageGenerationSize, ImageHistoryTask, ImageReference } from '@art-pilot/shared'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { GenerationForm } from './GenerationForm'
@@ -23,6 +23,7 @@ export type RecentTask = {
   status: TaskStatus
   createdAt: number
   completedAt?: number
+  references: ImageReference[]
   images: RecentTaskImage[]
   message?: string
   error?: string
@@ -43,7 +44,10 @@ export function ImageGenerationPage() {
   const [activeJobIds, setActiveJobIds] = useState<Set<string>>(() => new Set())
   const [recentTasks, setRecentTasks] = useState<RecentTask[]>([])
   const [startError, setStartError] = useState<string | null>(null)
+  const [referenceNotice, setReferenceNotice] = useState<string | null>(null)
+  const [references, setReferences] = useState<ImageReference[]>([])
   const [submitting, setSubmitting] = useState(false)
+  const referencesRef = useRef<ImageReference[]>([])
   const pendingHistoryReloadJobIdsRef = useRef(new Set<string>())
 
   const loadRecentTasks = useCallback(async (mode: 'replace' | 'merge' = 'replace') => {
@@ -100,6 +104,10 @@ export function ImageGenerationPage() {
     void loadRecentTasks('replace')
   }, [loadRecentTasks])
 
+  useEffect(() => {
+    referencesRef.current = references
+  }, [references])
+
   async function startGeneration() {
     const trimmedPrompt = prompt.trim()
 
@@ -115,10 +123,13 @@ export function ImageGenerationPage() {
         prompt: trimmedPrompt,
         count: imageCount,
         size: aspectRatioSizeMap[aspectRatio],
-        references: [],
+        references,
       })
 
       setPrompt('')
+      referencesRef.current = []
+      setReferences([])
+      setReferenceNotice(null)
     } catch (error) {
       setStartError(error instanceof Error ? error.message : String(error))
     } finally {
@@ -128,6 +139,67 @@ export function ImageGenerationPage() {
 
   async function cancelGeneration(jobId: string) {
     await window.api.cancelImageGeneration(jobId)
+  }
+
+  async function selectReferences() {
+    setReferenceNotice(null)
+    setStartError(null)
+
+    try {
+      const selectedReferences = await window.api.selectImageReferences()
+
+      if (selectedReferences.length === 0) {
+        return
+      }
+
+      addReferences(selectedReferences)
+    } catch (error) {
+      setStartError(error instanceof Error ? error.message : String(error))
+    }
+  }
+
+  async function pasteReferences() {
+    setReferenceNotice(null)
+    setStartError(null)
+
+    try {
+      const pastedReferences = await window.api.pasteImageReferencesFromClipboard()
+
+      if (pastedReferences.length === 0) {
+        return false
+      }
+
+      addReferences(pastedReferences)
+      return true
+    } catch (error) {
+      setStartError(error instanceof Error ? error.message : String(error))
+      return true
+    }
+  }
+
+  function removeReference(referenceId: string) {
+    setReferenceNotice(null)
+    const nextReferences = referencesRef.current.filter((reference) => reference.id !== referenceId)
+    referencesRef.current = nextReferences
+    setReferences(nextReferences)
+  }
+
+  function addReferences(nextReferences: ImageReference[]) {
+    const currentReferences = referencesRef.current
+    const mergedReferences = mergeReferences(currentReferences, nextReferences)
+    const currentPaths = new Set(currentReferences.map((reference) => reference.path))
+    const newReferencePaths = new Set(
+      nextReferences
+        .map((reference) => reference.path)
+        .filter((referencePath) => !currentPaths.has(referencePath)),
+    )
+
+    if (currentReferences.length + newReferencePaths.size > MAX_IMAGE_REFERENCES) {
+      setReferenceNotice(`参考图最多保留 ${MAX_IMAGE_REFERENCES} 张，已自动忽略超出的图片。`)
+    }
+
+    referencesRef.current = mergedReferences
+    setReferences(mergedReferences)
   }
 
   function handleImageGenerationEvent(event: ImageGenerationEvent) {
@@ -146,6 +218,7 @@ export function ImageGenerationPage() {
             aspectRatio: getAspectRatioFromSize(event.size),
             status: 'running',
             createdAt: event.createdAt,
+            references: event.references ?? [],
             images: [],
           },
           ...tasks,
@@ -240,8 +313,13 @@ export function ImageGenerationPage() {
               <GenerationForm
                 isGenerateDisabled={!prompt.trim() || submitting}
                 prompt={prompt}
+                references={references}
                 onGenerate={startGeneration}
                 onPromptChange={setPrompt}
+                onRemoveReference={removeReference}
+                onAddReferences={addReferences}
+                onPasteReferences={pasteReferences}
+                onSelectReferences={selectReferences}
               />
             </div>
 
@@ -256,6 +334,7 @@ export function ImageGenerationPage() {
           </div>
 
           {activeJobIds.size > 0 ? <p className="mt-3 text-base text-text-muted">正在运行 {activeJobIds.size} 个任务</p> : null}
+          {referenceNotice ? <p className="mt-3 text-base text-text-muted">{referenceNotice}</p> : null}
           {startError ? <p className="mt-3 text-base text-text-muted">{startError}</p> : null}
         </div>
       </section>
@@ -276,6 +355,7 @@ function mapHistoryTaskToRecentTask(task: ImageHistoryTask): RecentTask {
     status: task.status,
     createdAt: task.createdAt,
     completedAt: task.completedAt,
+    references: task.references,
     images: task.images.map((image) => ({
       index: image.index,
       imageUrl: image.imageUrl,
@@ -295,6 +375,7 @@ function createPlaceholderTask(jobId: string): RecentTask {
     aspectRatio: '1:1',
     status: 'running',
     createdAt: Date.now(),
+    references: [],
     images: [],
   }
 }
@@ -342,6 +423,20 @@ function mergeRecentTaskImages(currentImages: RecentTaskImage[], historyImages: 
   }
 
   return [...imagesByIndex.values()].sort((left, right) => left.index - right.index)
+}
+
+function mergeReferences(existingReferences: ImageReference[], incomingReferences: ImageReference[]) {
+  const existingPaths = new Set(existingReferences.map((reference) => reference.path))
+  const newReferences = incomingReferences.filter((reference) => {
+    if (existingPaths.has(reference.path)) {
+      return false
+    }
+
+    existingPaths.add(reference.path)
+    return true
+  })
+
+  return [...existingReferences, ...newReferences].slice(0, MAX_IMAGE_REFERENCES)
 }
 
 function sortRecentTasks(tasks: RecentTask[]) {

@@ -1,4 +1,6 @@
 export * from './api'
 export * from './codex'
+export * from './imageHistory'
 export * from './imageGeneration'
 export * from './ipc'
+export * from './settings'

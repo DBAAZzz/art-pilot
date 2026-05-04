@@ -5,7 +5,7 @@
 
 @theme {
   --font-sans: "Geist Variable", "SF Pro Text", "SF Pro Display", "Segoe UI", system-ui, sans-serif;
-  --text-base: 14px;
+  --text-base: 13px;
   --text-base--line-height: 20px;
   --text-title: 24px;
   --text-title--line-height: 32px;
@@ -30,6 +30,8 @@
   --color-background-solid-hover: var(--background-solid-hover);
   --color-text-muted: var(--text-muted);
   --color-text-strong: var(--text-strong);
+  --color-text-success: var(--text-success);
+  --color-text-error: var(--text-error);
   --shadow-app-header-bottom: var(--app-header-bottom-shadow);
 }
 
@@ -59,6 +61,10 @@
   --text-muted: #666666;
   /* 高对比度文本颜色 */
   --text-strong: #080808;
+  /* 成功状态文本颜色 */
+  --text-success: #16a34a;
+  /* 错误状态文本颜色 */
+  --text-error: #dc2626;
   /* 仅用于应用顶部导航栏底部的一点点阴影 */
   --app-header-bottom-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
 }

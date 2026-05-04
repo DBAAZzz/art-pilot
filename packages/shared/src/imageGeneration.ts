@@ -52,12 +52,13 @@ export type ImageGenerationEvent =
   | {
       type: typeof IMAGE_GENERATION_EVENT_TYPES.imageFound
       jobId: string
+      imageId: string
       codexThreadId?: string
-      // 按 Codex JSONL 中 image_generation_end 到达顺序分配，不依赖文件名或 mtime。
+      // 按 Codex JSONL 中 image_generation_end 到达顺序分配，从 1 开始，不依赖文件名或 mtime。
       index: number
-      // 真实磁盘路径只用于调试、历史记录和后续文件操作；renderer 展示图片应使用 imageUrl。
+      // Art Pilot 图片库中的真实磁盘路径；renderer 展示图片应使用 imageUrl。
       imagePath: string
-      // artpilot-image://generated/<jobId>/<index>，由主进程受控协议映射到真实路径。
+      // artpilot-image://generated/<jobId>/<index>，由主进程受控协议映射到图片库路径。
       imageUrl: string
       callId?: string
     }

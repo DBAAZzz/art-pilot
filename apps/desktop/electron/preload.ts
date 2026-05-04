@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { IPC_CHANNELS } from '@art-pilot/shared'
 import type { ImageGenerationEvent, ImageGenerationRequest } from '@art-pilot/shared'
+import type { UpdateAppSettingsRequest } from '@art-pilot/shared'
 
 contextBridge.exposeInMainWorld('versions', {
   node: () => process.versions.node,
@@ -35,6 +36,21 @@ contextBridge.exposeInMainWorld('api', {
   },
   cancelImageGeneration: (jobId: string) => {
     return ipcRenderer.invoke(IPC_CHANNELS.image.cancel, jobId)
+  },
+  getSettings: () => {
+    return ipcRenderer.invoke(IPC_CHANNELS.settings.get)
+  },
+  updateSettings: (settings: UpdateAppSettingsRequest) => {
+    return ipcRenderer.invoke(IPC_CHANNELS.settings.update, settings)
+  },
+  selectImageLibraryFolder: (currentPath?: string) => {
+    return ipcRenderer.invoke(IPC_CHANNELS.settings.selectImageLibraryFolder, currentPath)
+  },
+  listRecentImageTasks: (limit?: number) => {
+    return ipcRenderer.invoke(IPC_CHANNELS.imageHistory.listRecent, limit)
+  },
+  openImageLibraryFolder: () => {
+    return ipcRenderer.invoke(IPC_CHANNELS.imageHistory.openLibraryFolder)
   },
   toggleWindowMaximize: () => {
     return ipcRenderer.invoke(IPC_CHANNELS.window.toggleMaximize)

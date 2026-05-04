@@ -1,5 +1,5 @@
 import { IMAGE_GENERATION_EVENT_TYPES } from '@art-pilot/shared'
-import type { ImageGenerationEvent, ImageGenerationSize } from '@art-pilot/shared'
+import type { ImageGenerationEvent, ImageGenerationSize, ImageHistoryTask } from '@art-pilot/shared'
 import { useEffect, useRef, useState } from 'react'
 
 import { GenerationForm } from './GenerationForm'
@@ -52,6 +52,29 @@ export function ImageGenerationPage() {
     })
 
     return unsubscribe
+  }, [])
+
+  useEffect(() => {
+    let alive = true
+
+    async function loadRecentTasks() {
+      try {
+        // 最近任务从 SQLite 恢复；后端同时会把历史图片重新注册到自定义协议 registry。
+        const tasks = await window.api.listRecentImageTasks()
+
+        if (alive) {
+          setRecentTasks(tasks.map(mapHistoryTaskToRecentTask))
+        }
+      } catch (error) {
+        console.error('Failed to load recent image tasks:', error)
+      }
+    }
+
+    void loadRecentTasks()
+
+    return () => {
+      alive = false
+    }
   }, [])
 
   async function startGeneration() {
@@ -245,4 +268,36 @@ export function ImageGenerationPage() {
       <RecentTaskList tasks={recentTasks} />
     </>
   )
+}
+
+function mapHistoryTaskToRecentTask(task: ImageHistoryTask): RecentTask {
+  // 历史记录使用 shared 类型，页面内部继续复用现有 RecentTask 卡片结构。
+  return {
+    jobId: task.jobId,
+    codexThreadId: task.codexThreadId,
+    prompt: task.prompt,
+    count: task.count,
+    aspectRatio: getAspectRatioFromSize(task.size),
+    status: task.status,
+    createdAt: task.createdAt,
+    images: task.images.map((image) => ({
+      index: image.index,
+      imageUrl: image.imageUrl,
+      imagePath: image.imagePath,
+    })),
+    error: task.error,
+  }
+}
+
+function getAspectRatioFromSize(size: ImageHistoryTask['size']): AspectRatio {
+  // v1 数据库只保存实际传给 Codex 的尺寸；恢复 UI 时映射到最接近的比例标签。
+  if (size === '1024x1536') {
+    return '9:16'
+  }
+
+  if (size === '1536x1024') {
+    return '3:2'
+  }
+
+  return '1:1'
 }

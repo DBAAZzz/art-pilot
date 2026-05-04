@@ -1,7 +1,5 @@
-import { app, net, protocol } from 'electron'
+import { net, protocol } from 'electron'
 import { stat } from 'node:fs/promises'
-import os from 'node:os'
-import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { generatedImageRegistry } from './generatedImageRegistry'
 import { createLogger } from '../utils/logger'
@@ -84,27 +82,11 @@ function parseGeneratedImageUrl(url: string) {
 }
 
 async function isAllowedGeneratedImagePath(imagePath: string) {
-  const resolvedPath = path.resolve(imagePath)
-  const allowedRoots = [
-    path.join(os.homedir(), '.codex', 'generated_images'),
-    path.join(app.getPath('userData'), 'generated_images'),
-  ].map((root) => path.resolve(root))
-
-  if (!allowedRoots.some((root) => isPathInsideRoot(resolvedPath, root))) {
-    return false
-  }
-
   try {
-    const fileStat = await stat(resolvedPath)
+    const fileStat = await stat(imagePath)
 
     return fileStat.isFile()
   } catch {
     return false
   }
-}
-
-function isPathInsideRoot(filePath: string, rootPath: string) {
-  const relativePath = path.relative(rootPath, filePath)
-
-  return relativePath === '' || (!relativePath.startsWith('..') && !path.isAbsolute(relativePath))
 }

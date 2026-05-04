@@ -13,6 +13,9 @@ import type {
 } from '@art-pilot/shared'
 import { generatedImageRegistry } from '../protocols/generatedImageRegistry'
 import type { CodexImageProvider } from '../providers/codexImageProvider'
+import type { CodexCleanupService } from './codexCleanupService'
+import type { ImageHistoryService } from './imageHistoryService'
+import type { ImageLibraryService } from './imageLibraryService'
 import { CODEX_STREAM_EVENT_TYPES } from '../utils/codexCli'
 import type { CodexStreamEvent, CodexStreamingChildProcess } from '../utils/codexCli'
 import { findCodexGeneratedImagesFromSessions } from '../utils/generatedImages'
@@ -29,6 +32,7 @@ type ActiveImageGenerationJob = {
   // Codex CLI 在 thread.started 事件里才会给出，所以任务早期可能为空。
   codexThreadId?: string
   childProcess?: CodexStreamingChildProcess
+  originalImagePaths: string[]
   imagePaths: string[]
   sessionPaths: string[]
   startedAt: number
@@ -43,13 +47,19 @@ type ActiveImageGenerationJob = {
   recoveryPromise?: Promise<void>
   // 取消和进程退出可能同时发生，用这个标记保证只发送一次取消结果。
   cancellationEventSent: boolean
+  importFailureCount: number
 }
 
 export class ImageGenerationService {
   // v1 明确只允许一个 active image job，防止重复点击生成导致多个 Codex 进程并发消耗额度。
   private activeJob: ActiveImageGenerationJob | null = null
 
-  constructor(private readonly codexImageProvider: CodexImageProvider) {
+  constructor(
+    private readonly codexImageProvider: CodexImageProvider,
+    private readonly imageLibraryService: ImageLibraryService,
+    private readonly imageHistoryService: ImageHistoryService,
+    private readonly codexCleanupService: CodexCleanupService,
+  ) {
     app.on('before-quit', () => {
       this.terminateActiveJob('Application is quitting')
     })
@@ -74,6 +84,7 @@ export class ImageGenerationService {
     // 先创建 activeJob，再启动 Codex；这样即使启动阶段失败，也能向同一个 owner 推送 error。
     const activeJob: ActiveImageGenerationJob = {
       jobId,
+      originalImagePaths: [],
       imagePaths: [],
       sessionPaths: [],
       startedAt: Date.now(),
@@ -82,9 +93,21 @@ export class ImageGenerationService {
       ownerWebContentsId: ownerWebContents.id,
       isRecoveringImages: false,
       cancellationEventSent: false,
+      importFailureCount: 0,
     }
 
     this.activeJob = activeJob
+    try {
+      this.imageHistoryService.createTask({
+        jobId,
+        request: normalizedRequest,
+        count: activeJob.expectedCount,
+        createdAt: activeJob.startedAt,
+      })
+    } catch (error) {
+      this.clearActiveJob(jobId)
+      throw error
+    }
     logger.info(
       'image generation job created: jobId=%s owner=%d count=%d size=%s references=%d promptLength=%d',
       jobId,
@@ -155,6 +178,7 @@ export class ImageGenerationService {
       return { jobId }
     } catch (error) {
       logger.error('failed to start image generation job: jobId=%s error=%s', jobId, error instanceof Error ? error.message : String(error))
+      this.imageHistoryService.markTaskError(jobId, error instanceof Error ? error.message : String(error))
       this.sendToOwner(activeJob, {
         type: IMAGE_GENERATION_EVENT_TYPES.error,
         jobId,
@@ -193,6 +217,7 @@ export class ImageGenerationService {
 
     if (event.type === CODEX_STREAM_EVENT_TYPES.threadStarted) {
       activeJob.codexThreadId = event.threadId
+      this.imageHistoryService.updateTaskCodexThreadId(jobId, event.threadId)
       logger.info('codex thread started: jobId=%s codexThreadId=%s', jobId, event.threadId)
       this.sendToOwner(activeJob, {
         type: IMAGE_GENERATION_EVENT_TYPES.codexThreadStarted,
@@ -247,11 +272,18 @@ export class ImageGenerationService {
     if (activeJob.imagePaths.length === 0) {
       this.handleCodexError(
         jobId,
-        activeJob.lastMessage || 'Codex 任务已结束，但没有生成任何图片',
+        activeJob.importFailureCount > 0
+          ? `${activeJob.importFailureCount} 张图片导入失败`
+          : activeJob.lastMessage || 'Codex 任务已结束，但没有生成任何图片',
         'api-error',
       )
       return
     }
+
+    const completionError = activeJob.importFailureCount > 0
+      ? `${activeJob.importFailureCount}/${activeJob.imagePaths.length + activeJob.importFailureCount} images failed to import`
+      : undefined
+    this.imageHistoryService.completeTask(jobId, completionError)
 
     // complete 只表示 Codex 进程正常结束；实际生成图片数量以 imagePaths.length 为准。
     logger.info(
@@ -298,7 +330,7 @@ export class ImageGenerationService {
       sessionPaths: activeJob.sessionPaths,
     })
     activeJob.sessionPaths = sessionPaths
-    const newImagePaths = recoveredImagePaths.filter((imagePath) => !activeJob.imagePaths.includes(imagePath))
+    const newImagePaths = recoveredImagePaths.filter((imagePath) => !activeJob.originalImagePaths.includes(imagePath))
 
     if (newImagePaths.length === 0) {
       if (logEmptyResult && recoveredImagePaths.length === 0 && activeJob.imagePaths.length === 0) {
@@ -319,17 +351,39 @@ export class ImageGenerationService {
     logger.info('loaded image paths from codex session files: jobId=%s codexThreadId=%s count=%d', activeJob.jobId, activeJob.codexThreadId ?? 'unknown', newImagePaths.length)
 
     for (const imagePath of newImagePaths) {
-      const index = activeJob.imagePaths.length
-      activeJob.imagePaths.push(imagePath)
-      generatedImageRegistry.register(activeJob.jobId, index, imagePath)
-      this.sendToOwner(activeJob, {
-        type: IMAGE_GENERATION_EVENT_TYPES.imageFound,
-        jobId: activeJob.jobId,
-        codexThreadId: activeJob.codexThreadId,
-        index,
-        imagePath,
-        imageUrl: generatedImageRegistry.createGeneratedImageUrl(activeJob.jobId, index),
-      })
+      activeJob.originalImagePaths.push(imagePath)
+      const index = activeJob.imagePaths.length + 1
+
+      try {
+        const importedImage = await this.imageLibraryService.moveImageToLibrary({
+          jobId: activeJob.jobId,
+          index,
+          sourcePath: imagePath,
+          createdAt: activeJob.startedAt,
+        })
+
+        this.imageHistoryService.saveImportedImage(activeJob.jobId, importedImage)
+        activeJob.imagePaths.push(importedImage.libraryPath)
+        generatedImageRegistry.register(activeJob.jobId, index, importedImage.libraryPath)
+        this.sendToOwner(activeJob, {
+          type: IMAGE_GENERATION_EVENT_TYPES.imageFound,
+          jobId: activeJob.jobId,
+          imageId: importedImage.imageId,
+          codexThreadId: activeJob.codexThreadId,
+          index,
+          imagePath: importedImage.libraryPath,
+          imageUrl: generatedImageRegistry.createGeneratedImageUrl(activeJob.jobId, index),
+        })
+        await this.codexCleanupService.cleanupImportedImage(importedImage.imageId, importedImage.originalCodexPath)
+      } catch (error) {
+        activeJob.importFailureCount += 1
+        logger.error(
+          'failed to import recovered image: jobId=%s sourcePath=%s error=%s',
+          activeJob.jobId,
+          imagePath,
+          error instanceof Error ? error.message : String(error),
+        )
+      }
     }
   }
 
@@ -359,6 +413,11 @@ export class ImageGenerationService {
     }
 
     logger.error('image generation job failed: jobId=%s reason=%s error=%s', jobId, reason, error)
+    if (reason === 'cancelled') {
+      this.imageHistoryService.markTaskCancelled(jobId, error)
+    } else {
+      this.imageHistoryService.markTaskError(jobId, error)
+    }
     this.sendToOwner(activeJob, {
       type: IMAGE_GENERATION_EVENT_TYPES.error,
       jobId,
@@ -401,6 +460,7 @@ export class ImageGenerationService {
 
     activeJob.cancellationEventSent = true
     logger.info('sending image generation cancellation event: jobId=%s message=%s', activeJob.jobId, message)
+    this.imageHistoryService.markTaskCancelled(activeJob.jobId, message)
     this.sendToOwner(activeJob, {
       type: IMAGE_GENERATION_EVENT_TYPES.error,
       jobId: activeJob.jobId,

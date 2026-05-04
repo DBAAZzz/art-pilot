@@ -38,7 +38,7 @@ function SelectTrigger({
       data-slot="select-trigger"
       data-size={size}
       className={cn(
-        'flex w-fit cursor-pointer items-center justify-between gap-1.5 rounded-lg border border-border bg-fill py-1.5 pl-2.5 pr-2 text-base text-text-strong whitespace-nowrap transition-colors outline-none select-none hover:border-border-hover hover:bg-fill-hover focus-visible:border-border-hover disabled:cursor-not-allowed disabled:opacity-50 data-placeholder:text-text-muted data-[size=default]:h-7 data-[size=sm]:h-6 *:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-1.5 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*=\'size-\'])]:size-3.5',
+        'flex w-fit cursor-pointer items-center justify-between gap-1.5 rounded-lg border border-border bg-fill py-1.5 pl-2.5 pr-2 text-base text-text-strong whitespace-nowrap transition-colors outline-none select-none hover:border-border-hover hover:bg-fill-hover focus-visible:border-border-hover disabled:cursor-not-allowed disabled:opacity-50 data-placeholder:text-text-muted data-[size=default]:h-8 data-[size=sm]:h-7 *:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-1.5 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*=\'size-\'])]:size-3.5',
         className,
       )}
       {...props}
@@ -130,9 +130,9 @@ function SelectItem({
     >
       <SelectPrimitive.ItemIndicator
         data-slot="select-item-indicator"
-        className="pointer-events-none absolute right-2 flex size-3.5 items-center justify-center"
+        className="pointer-events-none absolute right-2 flex size-3.5 items-center justify-center text-text-muted"
       >
-        <CheckIcon className="pointer-events-none" />
+        <CheckIcon className="pointer-events-none size-3.5" strokeWidth={1.9} />
       </SelectPrimitive.ItemIndicator>
       <SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>
     </SelectPrimitive.Item>

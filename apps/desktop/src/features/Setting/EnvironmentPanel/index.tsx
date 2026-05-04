@@ -1,7 +1,8 @@
 import type { CodexEnvironment } from '@art-pilot/shared'
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 
-import { SettingsList, SettingsPanelHeader, SettingsRow } from '../SettingPanelPrimitives'
+import { useCodexEnvironmentStore } from '@/stores/codexEnvironmentStore'
+import { SettingsList, SettingsPanelHeader, SettingsRow } from '../components/SettingPanelPrimitives'
 
 function getLoginText(environment: CodexEnvironment | null, loading: boolean) {
   if (loading) {
@@ -35,38 +36,27 @@ function getLoginKindText(environment: CodexEnvironment | null) {
   return '已认证'
 }
 
+function getStatusTextClass(success: boolean | null) {
+  if (success === null) {
+    return 'text-text-strong'
+  }
+
+  return success ? 'text-text-success' : 'text-text-error'
+}
+
 export function EnvironmentPanel() {
-  const [environment, setEnvironment] = useState<CodexEnvironment | null>(null)
-  const [loading, setLoading] = useState(true)
+  const environment = useCodexEnvironmentStore((state) => state.environment)
+  const refreshing = useCodexEnvironmentStore((state) => state.refreshing)
+  const refreshEnvironment = useCodexEnvironmentStore((state) => state.refreshEnvironment)
 
   useEffect(() => {
-    let alive = true
+    void refreshEnvironment()
+  }, [refreshEnvironment])
 
-    async function detectCodexEnvironment() {
-      setLoading(true)
-
-      try {
-        const result = await window.api.detectCodexEnvironment()
-        console.log('Codex Environment:', result)
-        const usage = await window.api.readCodexUsage()
-        console.log('Codex Usage:', usage)
-
-        if (alive) {
-          setEnvironment(result)
-        }
-      } finally {
-        if (alive) {
-          setLoading(false)
-        }
-      }
-    }
-
-    void detectCodexEnvironment()
-
-    return () => {
-      alive = false
-    }
-  }, [])
+  const loading = !environment && refreshing
+  const loginSucceeded = loading ? null : Boolean(environment?.installed && environment.available && environment.loggedIn)
+  const loginKindSucceeded = loading ? null : Boolean(environment?.loggedIn)
+  const cliInstalled = loading ? null : Boolean(environment?.installed)
 
   return (
     <>
@@ -75,27 +65,27 @@ export function EnvironmentPanel() {
         <SettingsRow
           description={environment?.loginStatus || environment?.error || '通过 codex login status 判断终端认证状态'}
           title="登录状态"
-          action={<span className="text-base font-semibold text-text-strong">{getLoginText(environment, loading)}</span>}
+          action={<span className={`text-base ${getStatusTextClass(loginSucceeded)}`}>{getLoginText(environment, loading)}</span>}
         />
         <SettingsRow
           description="根据 CLI 状态输出判断认证来源"
           title="登录方式"
-          action={<span className="truncate text-base font-semibold text-text-strong">{getLoginKindText(environment)}</span>}
+          action={<span className={`truncate text-base ${getStatusTextClass(loginKindSucceeded)}`}>{getLoginKindText(environment)}</span>}
         />
         <SettingsRow
           description="通过 command -v codex 查找当前终端可用命令"
           title="CLI 安装"
-          action={<span className="text-base font-semibold text-text-strong">{environment?.installed ? '已安装' : '未安装'}</span>}
+          action={<span className={`text-base ${getStatusTextClass(cliInstalled)}`}>{environment?.installed ? '已安装' : '未安装'}</span>}
         />
         <SettingsRow
           description="命令行工具可被调用"
           title="CLI 版本"
-          action={<span className="text-base font-semibold text-text-strong">{environment?.version || '-'}</span>}
+          action={<span className="font-mono text-base text-text-strong">{environment?.version || '-'}</span>}
         />
         <SettingsRow
           description="来自当前终端 PATH"
           title="CLI 路径"
-          action={<span className="truncate text-base font-semibold text-text-strong">{environment?.executablePath || '-'}</span>}
+          action={<span className="truncate font-mono text-base text-text-strong">{environment?.executablePath || '-'}</span>}
         />
       </SettingsList>
     </>

@@ -1,12 +1,12 @@
-import { MonitorCheck, Settings2 } from 'lucide-react'
+import { Database, MonitorCheck } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useState } from 'react'
 
+import { SettingMenuItem } from './components/SettingMenuItem'
 import { EnvironmentPanel } from './EnvironmentPanel'
-import { GeneralPanel } from './GeneralPanel'
-import { SettingMenuItem } from './SettingMenuItem'
+import { StoragePanel } from './StoragePanel'
 
-type SettingSection = 'environment' | 'general'
+type SettingSection = 'environment' | 'storage'
 
 type SettingTab = {
   id: SettingSection
@@ -22,9 +22,9 @@ const tabs: SettingTab[] = [
     icon: MonitorCheck,
   },
   {
-    id: 'general',
-    label: '通用',
-    icon: Settings2,
+    id: 'storage',
+    label: '数据存储',
+    icon: Database,
   },
 ]
 
@@ -59,7 +59,7 @@ export function SettingPage() {
       <SettingMenu activeSection={activeSection} onSectionChange={setActiveSection} />
 
       <div className="min-h-0 overflow-y-auto px-2 py-2">
-        {activeSection === 'environment' ? <EnvironmentPanel /> : <GeneralPanel />}
+        {activeSection === 'environment' ? <EnvironmentPanel /> : <StoragePanel />}
       </div>
     </div>
   )

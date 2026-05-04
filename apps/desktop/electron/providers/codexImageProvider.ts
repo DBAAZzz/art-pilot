@@ -25,6 +25,7 @@ export class CodexImageProvider {
     )
 
     const executablePath = await findCodexExecutable()
+    const imageTimeoutMs = 300000 // 单张图片限制生图时间最长为 5 minutes
 
     if (!executablePath) {
       logger.error('cannot start streaming image generation: codex executable not found')
@@ -44,7 +45,7 @@ export class CodexImageProvider {
       sandbox: 'workspace-write',
       images: request.references?.map((reference) => reference.path),
       startupTimeoutMs: 30000,
-      inactivityTimeoutMs: 300000,
+      inactivityTimeoutMs: normalizeImageCount(request.count) * imageTimeoutMs,
       absoluteTimeoutMs: 600000,
     })
     logger.info('codex streaming process spawned: pid=%s', String(childProcess.pid ?? 'unknown'))

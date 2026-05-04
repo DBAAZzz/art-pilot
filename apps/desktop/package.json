@@ -7,6 +7,7 @@
     "dev": "vite",
     "typecheck": "tsc --noEmit",
     "build": "tsc && vite build && electron-builder",
+    "rebuild:native": "electron-builder install-app-deps",
     "preview": "vite preview"
   },
   "keywords": [],
@@ -17,6 +18,7 @@
     "@base-ui/react": "^1.4.1",
     "@fontsource-variable/geist": "^5.2.8",
     "@tailwindcss/vite": "^4.2.4",
+    "better-sqlite3": "^12.9.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "debug": "^4.4.3",
@@ -28,9 +30,11 @@
     "shadcn": "^4.6.0",
     "tailwind-merge": "^3.5.0",
     "tailwindcss": "^4.2.4",
-    "tw-animate-css": "^1.4.0"
+    "tw-animate-css": "^1.4.0",
+    "zustand": "^5.0.12"
   },
   "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
     "@types/debug": "^4.1.13",
     "@types/react": "^19.1.2",
     "@types/react-dom": "^19.1.2",

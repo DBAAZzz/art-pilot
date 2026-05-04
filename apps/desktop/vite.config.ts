@@ -17,6 +17,13 @@ export default defineConfig({
     electron([
       {
         entry: 'electron/main.ts',
+        vite: {
+          build: {
+            rollupOptions: {
+              external: ['better-sqlite3'],
+            },
+          },
+        },
         onstart(args) {
           const env = { ...process.env }
           delete env.ELECTRON_RUN_AS_NODE

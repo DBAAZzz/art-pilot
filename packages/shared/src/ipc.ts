@@ -12,6 +12,15 @@ export const IPC_CHANNELS = {
     generationEvent: 'image:generation-event',
     cancel: 'image:cancel',
   },
+  settings: {
+    get: 'settings:get',
+    update: 'settings:update',
+    selectImageLibraryFolder: 'settings:select-image-library-folder',
+  },
+  imageHistory: {
+    listRecent: 'image-history:list-recent',
+    openLibraryFolder: 'image-history:open-library-folder',
+  },
   window: {
     toggleMaximize: 'window:toggle-maximize',
   },

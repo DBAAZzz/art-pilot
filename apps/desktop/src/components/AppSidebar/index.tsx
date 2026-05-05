@@ -1,22 +1,14 @@
-import { Folder, ImageIcon, PenLine, Settings, Sparkles } from 'lucide-react'
+import { Settings } from 'lucide-react'
 import { NavLink } from 'react-router'
 
 import { SidebarNavButton } from './SidebarNavButton'
-import type { SidebarNavItem } from './SidebarNavButton'
-
-const navItems: SidebarNavItem[] = [
-  { label: '创作', icon: Sparkles, to: '/' },
-  { label: '素材库', icon: ImageIcon },
-  { label: '归档管理', icon: Folder },
-  { label: 'Prompt 管理', icon: PenLine },
-  { label: '模型与设置', icon: Settings },
-]
+import { appNavigationItems } from '@/router/navigation'
 
 export function AppSidebar() {
   return (
     <aside className='flex w-[238px] shrink-0 flex-col border-r border-slate-200/70 bg-background-subtle px-2 pb-4 pt-14'>
       <nav aria-label='主导航' className='flex flex-col gap-1'>
-        {navItems.map((item) => (
+        {appNavigationItems.map((item) => (
           <SidebarNavButton key={item.label} item={item} />
         ))}
       </nav>

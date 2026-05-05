@@ -1,12 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
-import type { GeneratedImageResultImage } from '.'
+export type ImagePreviewItem = {
+  index: number
+  imageUrl: string
+  imagePath?: string
+}
 
 const MIN_ZOOM = 0.5
 const MAX_ZOOM = 4
 const ZOOM_STEP = 0.25
 
-export function useImagePreview(images: GeneratedImageResultImage[]) {
+export function useImagePreview<TImage extends ImagePreviewItem>(images: TImage[]) {
   const sortedImages = useMemo(
     () => [...images].sort((left, right) => left.index - right.index),
     [images],
@@ -22,7 +26,7 @@ export function useImagePreview(images: GeneratedImageResultImage[]) {
     setZoom(1)
   }, [])
 
-  const openPreview = useCallback((image: GeneratedImageResultImage) => {
+  const openPreview = useCallback((image: TImage) => {
     setPreviewImageIndex(image.index)
     setZoom(1)
   }, [])

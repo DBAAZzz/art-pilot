@@ -1,9 +1,9 @@
 import type { MouseEvent } from 'react'
-import { useLocation } from 'react-router'
+import { useMatches } from 'react-router'
 
 export function AppHeader() {
-  const location = useLocation()
-  const isSettings = location.pathname === '/settings'
+  const matches = useMatches()
+  const title = [...matches].reverse().map((match) => getRouteTitle(match.handle)).find(Boolean) ?? 'Art Pilot'
 
   const handleDoubleClick = (event: MouseEvent<HTMLElement>) => {
     const target = event.target
@@ -21,8 +21,22 @@ export function AppHeader() {
       onDoubleClick={handleDoubleClick}
     >
       <div className="flex items-center gap-2.5 text-[15px] font-semibold text-text-strong">
-        <span>{isSettings ? '设置' : '创作'}</span>
+        <span>{title}</span>
       </div>
     </header>
   )
+}
+
+function getRouteTitle(handle: unknown) {
+  if (typeof handle !== 'object' || handle === null || !('meta' in handle)) {
+    return undefined
+  }
+
+  const meta = handle.meta
+
+  if (typeof meta !== 'object' || meta === null || !('title' in meta)) {
+    return undefined
+  }
+
+  return typeof meta.title === 'string' ? meta.title : undefined
 }

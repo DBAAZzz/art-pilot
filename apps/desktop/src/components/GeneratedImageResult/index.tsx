@@ -3,17 +3,13 @@ import type { ImageReference } from '@art-pilot/shared'
 import { useMemo } from 'react'
 
 import { ImagePreviewOverlay } from '@/components/ImagePreviewOverlay'
+import type { ImagePreviewItem } from '@/hooks/useImagePreview'
+import { useImagePreview } from '@/hooks/useImagePreview'
 import { cn } from '@/lib/utils'
-
-import { useImagePreview } from './useImagePreview'
 
 export type GeneratedImageResultStatus = 'running' | 'complete' | 'error' | 'cancelled'
 
-export type GeneratedImageResultImage = {
-  index: number
-  imageUrl: string
-  imagePath?: string
-}
+export type GeneratedImageResultImage = ImagePreviewItem
 
 export function GeneratedImageResult({
   aspectRatio,

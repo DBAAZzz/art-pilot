@@ -5,7 +5,7 @@ import { useMemo } from 'react'
 import { useRef } from 'react'
 
 import { ImagePreviewOverlay } from '@/components/ImagePreviewOverlay'
-import { useImagePreview } from '@/components/GeneratedImageResult/useImagePreview'
+import { useImagePreview } from '@/hooks/useImagePreview'
 import { cn } from '@/lib/utils'
 
 export function GenerationForm({

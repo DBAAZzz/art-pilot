@@ -1,6 +1,8 @@
 import { createHashRouter } from 'react-router'
 
+import { AssetManagementPage } from '@/features/AssetManagement'
 import { ImageGenerationPage } from '@/features/ImageGeneration'
+import { PromptManagementPage } from '@/features/PromptManagement'
 import { SettingPage } from '@/features/Setting'
 import { AppLayout } from '@/layout/AppLayout'
 
@@ -12,10 +14,38 @@ export const router = createHashRouter([
       {
         index: true,
         element: <ImageGenerationPage />,
+        handle: {
+          meta: {
+            title: '创作',
+          },
+        },
+      },
+      {
+        path: 'assets',
+        element: <AssetManagementPage />,
+        handle: {
+          meta: {
+            title: '资产管理',
+          },
+        },
+      },
+      {
+        path: 'prompts',
+        element: <PromptManagementPage />,
+        handle: {
+          meta: {
+            title: '提示词管理',
+          },
+        },
       },
       {
         path: 'settings',
         element: <SettingPage />,
+        handle: {
+          meta: {
+            title: '设置',
+          },
+        },
       },
     ],
   },

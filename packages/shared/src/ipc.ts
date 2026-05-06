@@ -24,6 +24,14 @@ export const IPC_CHANNELS = {
     openLibraryFolder: 'image-history:open-library-folder',
     openImageFileLocation: 'image-history:open-image-file-location',
   },
+  system: {
+    openExternalUrl: 'system:open-external-url',
+  },
+  prompt: {
+    previewImport: 'prompt:preview-import',
+    save: 'prompt:save',
+    list: 'prompt:list',
+  },
   window: {
     toggleMaximize: 'window:toggle-maximize',
   },

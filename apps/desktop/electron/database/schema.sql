@@ -38,3 +38,26 @@ CREATE INDEX IF NOT EXISTS idx_generation_tasks_created_at
 
 CREATE INDEX IF NOT EXISTS idx_generated_images_task_id_index
   ON generated_images(task_id, image_index);
+
+CREATE TABLE IF NOT EXISTS prompts (
+  id TEXT PRIMARY KEY,
+  title TEXT NOT NULL,
+  content TEXT NOT NULL,
+  description TEXT,
+  source_site TEXT NOT NULL,
+  source_url TEXT,
+  source_author TEXT,
+  original_source_url TEXT,
+  original_language TEXT,
+  categories_json TEXT NOT NULL DEFAULT '[]',
+  preview_images_json TEXT NOT NULL DEFAULT '[]',
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_prompts_updated_at
+  ON prompts(updated_at DESC);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_prompts_source_url
+  ON prompts(source_url)
+  WHERE source_url IS NOT NULL;

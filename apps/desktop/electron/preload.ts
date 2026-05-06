@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import { IPC_CHANNELS } from '@art-pilot/shared'
 import type { ImageGenerationEvent, ImageGenerationRequest } from '@art-pilot/shared'
+import type { SavePromptRequest } from '@art-pilot/shared'
 import type { UpdateAppSettingsRequest } from '@art-pilot/shared'
 
 contextBridge.exposeInMainWorld('versions', {
@@ -63,6 +64,18 @@ contextBridge.exposeInMainWorld('api', {
   },
   openImageFileLocation: (imagePath: string) => {
     return ipcRenderer.invoke(IPC_CHANNELS.imageHistory.openImageFileLocation, imagePath)
+  },
+  openExternalUrl: (url: string) => {
+    return ipcRenderer.invoke(IPC_CHANNELS.system.openExternalUrl, url)
+  },
+  previewPromptImport: (url: string) => {
+    return ipcRenderer.invoke(IPC_CHANNELS.prompt.previewImport, url)
+  },
+  savePrompt: (request: SavePromptRequest) => {
+    return ipcRenderer.invoke(IPC_CHANNELS.prompt.save, request)
+  },
+  listPrompts: () => {
+    return ipcRenderer.invoke(IPC_CHANNELS.prompt.list)
   },
   toggleWindowMaximize: () => {
     return ipcRenderer.invoke(IPC_CHANNELS.window.toggleMaximize)

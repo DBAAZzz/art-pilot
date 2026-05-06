@@ -85,6 +85,8 @@ body {
   background: #fffref;
   color: #1f2937;
   font-family: var(--font-sans);
+  font-size: var(--text-base);
+  line-height: var(--text-base--line-height);
   -webkit-font-smoothing: antialiased;
   text-rendering: geometricPrecision;
 }

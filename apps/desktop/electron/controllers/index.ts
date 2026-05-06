@@ -1,7 +1,9 @@
 import { CodexController } from './codexController'
 import { ImageHistoryController } from './imageHistoryController'
 import { ImageGenerationController } from './imageGenerationController'
+import { PromptController } from './promptController'
 import { SettingsController } from './settingsController'
+import { SystemController } from './systemController'
 import { WindowController } from './windowController'
 import { CodexImageProvider } from '../providers/codexImageProvider'
 import { CodexService } from '../services/codexService'
@@ -10,6 +12,8 @@ import { DatabaseService } from '../services/databaseService'
 import { ImageHistoryService } from '../services/imageHistoryService'
 import { ImageGenerationService } from '../services/imageGenerationService'
 import { ImageLibraryService } from '../services/imageLibraryService'
+import { PromptImportService } from '../services/promptImportService'
+import { PromptService } from '../services/promptService'
 import { SettingsService } from '../services/settingsService'
 
 export function registerControllers() {
@@ -20,6 +24,8 @@ export function registerControllers() {
   const codexCleanupService = new CodexCleanupService(databaseService, settingsService)
   const codexImageProvider = new CodexImageProvider()
   const codexService = new CodexService()
+  const promptImportService = new PromptImportService()
+  const promptService = new PromptService(databaseService)
   const imageGenerationService = new ImageGenerationService(
     codexImageProvider,
     imageLibraryService,
@@ -32,6 +38,8 @@ export function registerControllers() {
     new ImageGenerationController(imageGenerationService),
     new SettingsController(settingsService),
     new ImageHistoryController(imageHistoryService, settingsService),
+    new PromptController(promptImportService, promptService),
+    new SystemController(),
     new WindowController(),
   ]
 

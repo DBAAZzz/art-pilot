@@ -6,6 +6,7 @@ import type {
   ImageGenerationStartResult,
   ImageReference,
 } from './imageGeneration'
+import type { PromptImportDraft, PromptRecord, SavePromptRequest } from './prompt'
 import type { AppSettings, UpdateAppSettingsRequest } from './settings'
 
 export interface VersionsApi {
@@ -31,5 +32,9 @@ export interface ElectronApi {
   listRecentImageTasks: (limit?: number) => Promise<ImageHistoryTask[]>
   openImageLibraryFolder: () => Promise<void>
   openImageFileLocation: (imagePath: string) => Promise<void>
+  openExternalUrl: (url: string) => Promise<void>
+  previewPromptImport: (url: string) => Promise<PromptImportDraft>
+  savePrompt: (request: SavePromptRequest) => Promise<PromptRecord>
+  listPrompts: () => Promise<PromptRecord[]>
   toggleWindowMaximize: () => Promise<void>
 }

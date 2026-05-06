@@ -13,6 +13,8 @@ export type ReferenceImageKey = `${string}:reference:${number}`
  *
  * generated 对应 artpilot-image://generated/<jobId>/<index>。
  * reference 对应 artpilot-image://reference/<jobId>/<index>。
+ * asset-thumbnail 对应 artpilot-image://asset-thumbnail/<imageId>。
+ * asset-original 对应 artpilot-image://asset-original/<imageId>。
  */
 export type ImageProtocolUrl =
   | {
@@ -30,4 +32,16 @@ export type ImageProtocolUrl =
       jobId: string
       /** 参考图在任务内的序号。 */
       index: number
+    }
+  | {
+      /** 图片类别：资产缩略图。 */
+      kind: 'asset-thumbnail'
+      /** 图片资产 ID。 */
+      imageId: string
+    }
+  | {
+      /** 图片类别：资产原图。 */
+      kind: 'asset-original'
+      /** 图片资产 ID。 */
+      imageId: string
     }

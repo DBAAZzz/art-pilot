@@ -1,4 +1,5 @@
 export * from './api'
+export * from './assets'
 export * from './codex'
 export * from './imageHistory'
 export * from './imageGeneration'

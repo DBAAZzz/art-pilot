@@ -60,8 +60,8 @@ export class ImageHistoryService {
     this.databaseService
       .getConnection()
       .prepare(`
-        INSERT INTO generation_tasks (id, prompt, count, aspect_ratio, size, references_json, status, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, 'running', ?)
+        INSERT INTO generation_tasks (id, prompt, count, aspect_ratio, size, generation_params, references_json, status, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, 'running', ?)
       `)
       .run(
         input.jobId,
@@ -69,6 +69,7 @@ export class ImageHistoryService {
         input.count,
         input.request.aspectRatio ?? null,
         input.request.size ?? null,
+        serializeGenerationParams(input.request, input.count),
         serializeReferences(input.request.references ?? []),
         input.createdAt,
       )
@@ -238,6 +239,22 @@ function serializeReferences(references: ImageReference[]) {
     name,
     mimeType,
   })))
+}
+
+function serializeGenerationParams(request: ImageGenerationRequest, count: number) {
+  return JSON.stringify({
+    provider: 'codex',
+    model: null,
+    checkpoint: null,
+    size: request.size ?? null,
+    aspectRatio: request.aspectRatio ?? null,
+    seed: null,
+    steps: null,
+    sampler: null,
+    cfgScale: null,
+    count,
+    referenceCount: request.references?.length ?? 0,
+  })
 }
 
 function parseReferences(referencesJson: string | null): ImageReference[] {

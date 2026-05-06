@@ -6,6 +6,7 @@ const logger = createLogger('art-pilot:image-registry')
 export class GeneratedImageRegistry {
   private readonly imagePaths = new Map<GeneratedImageKey, string>()
   private readonly referencePaths = new Map<ReferenceImageKey, string>()
+  private readonly assetPaths = new Map<string, string>()
 
   register(jobId: string, index: number, imagePath: string) {
     this.imagePaths.set(this.createKey(jobId, index), imagePath)
@@ -100,6 +101,23 @@ export class GeneratedImageRegistry {
 
   createReferenceImageUrl(jobId: string, index: number) {
     return `artpilot-image://reference/${encodeURIComponent(jobId)}/${index}`
+  }
+
+  registerAsset(imageId: string, imagePath: string) {
+    this.assetPaths.set(imageId, imagePath)
+    logger.debug('registered asset image: imageId=%s path=%s', imageId, formatPathForLog(imagePath))
+  }
+
+  getAsset(imageId: string) {
+    return this.assetPaths.get(imageId)
+  }
+
+  createAssetOriginalUrl(imageId: string) {
+    return `artpilot-image://asset-original/${encodeURIComponent(imageId)}`
+  }
+
+  createAssetThumbnailUrl(imageId: string) {
+    return `artpilot-image://asset-thumbnail/${encodeURIComponent(imageId)}`
   }
 
   private createKey(jobId: string, index: number): GeneratedImageKey {

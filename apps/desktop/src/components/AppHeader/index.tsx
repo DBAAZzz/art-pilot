@@ -3,7 +3,9 @@ import { useMatches } from 'react-router'
 
 export function AppHeader() {
   const matches = useMatches()
-  const title = [...matches].reverse().map((match) => getRouteTitle(match.handle)).find(Boolean) ?? 'Art Pilot'
+  const activeHandle = [...matches].reverse().map((match) => match.handle).find((handle) => getRouteTitle(handle) || shouldHideRouteTitle(handle))
+  const title = getRouteTitle(activeHandle) ?? 'Art Pilot'
+  const shouldHideTitle = shouldHideRouteTitle(activeHandle)
 
   const handleDoubleClick = (event: MouseEvent<HTMLElement>) => {
     const target = event.target
@@ -21,10 +23,23 @@ export function AppHeader() {
       onDoubleClick={handleDoubleClick}
     >
       <div className="flex items-center gap-2.5 text-[15px] font-semibold text-text-strong">
-        <span>{title}</span>
+        {shouldHideTitle ? null : <span>{title}</span>}
       </div>
     </header>
   )
+}
+
+function shouldHideRouteTitle(handle: unknown) {
+  if (typeof handle !== 'object' || handle === null || !('meta' in handle)) {
+    return false
+  }
+
+  const meta = handle.meta
+
+  return typeof meta === 'object'
+    && meta !== null
+    && 'hideHeaderTitle' in meta
+    && meta.hideHeaderTitle === true
 }
 
 function getRouteTitle(handle: unknown) {

@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import { IPC_CHANNELS } from '@art-pilot/shared'
+import type { AssetListQuery } from '@art-pilot/shared'
 import type { ImageGenerationEvent, ImageGenerationRequest } from '@art-pilot/shared'
 import type { SavePromptRequest } from '@art-pilot/shared'
 import type { UpdateAppSettingsRequest } from '@art-pilot/shared'
@@ -58,6 +59,18 @@ contextBridge.exposeInMainWorld('api', {
   },
   listRecentImageTasks: (limit?: number) => {
     return ipcRenderer.invoke(IPC_CHANNELS.imageHistory.listRecent, limit)
+  },
+  listAssets: (query?: AssetListQuery) => {
+    return ipcRenderer.invoke(IPC_CHANNELS.assets.list, query)
+  },
+  getAssetDetail: (imageId: string) => {
+    return ipcRenderer.invoke(IPC_CHANNELS.assets.getDetail, imageId)
+  },
+  getAssetStats: () => {
+    return ipcRenderer.invoke(IPC_CHANNELS.assets.getStats)
+  },
+  setAssetFavorite: (imageId: string, favorite: boolean) => {
+    return ipcRenderer.invoke(IPC_CHANNELS.assets.setFavorite, imageId, favorite)
   },
   openImageLibraryFolder: () => {
     return ipcRenderer.invoke(IPC_CHANNELS.imageHistory.openLibraryFolder)

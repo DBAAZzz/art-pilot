@@ -1,4 +1,4 @@
-import { net, protocol } from 'electron'
+import { nativeImage, net, protocol } from 'electron'
 import { stat } from 'node:fs/promises'
 import { pathToFileURL } from 'node:url'
 import { generatedImageRegistry } from './generatedImageRegistry'
@@ -7,7 +7,8 @@ import type { ImageProtocolUrl } from '../types/generatedImageProtocol'
 
 const logger = createLogger('art-pilot:image-protocol')
 const GENERATED_IMAGE_SCHEME = 'artpilot-image'
-const IMAGE_PROTOCOL_KINDS = new Set<ImageProtocolUrl['kind']>(['generated', 'reference'])
+const IMAGE_PROTOCOL_KINDS = new Set<ImageProtocolUrl['kind']>(['generated', 'reference', 'asset-original', 'asset-thumbnail'])
+const THUMBNAIL_SIZE = 512
 
 export function registerGeneratedImageProtocolScheme() {
   logger.info('registering generated image protocol scheme: scheme=%s', GENERATED_IMAGE_SCHEME)
@@ -56,6 +57,11 @@ export function registerGeneratedImageProtocolHandler() {
       return new Response('Registered image is not a file', { status: 403 })
     }
 
+    if (parsedUrl.kind === 'asset-thumbnail') {
+      logger.debug('serving thumbnail image: kind=%s path=%s', parsedUrl.kind, imagePath)
+      return createThumbnailResponse(imagePath)
+    }
+
     logger.debug('serving image: kind=%s path=%s', parsedUrl.kind, imagePath)
     return net.fetch(pathToFileURL(imagePath).toString())
   })
@@ -68,6 +74,10 @@ function getRegisteredImagePath(parsedUrl: ImageProtocolUrl) {
 
   if (parsedUrl.kind === 'reference') {
     return generatedImageRegistry.getReference(parsedUrl.jobId, parsedUrl.index)
+  }
+
+  if (parsedUrl.kind === 'asset-original' || parsedUrl.kind === 'asset-thumbnail') {
+    return generatedImageRegistry.getAsset(parsedUrl.imageId)
   }
 
   return undefined
@@ -83,6 +93,18 @@ function parseImageProtocolUrl(url: string) {
     }
 
     const pathParts = parsedUrl.pathname.split('/').filter(Boolean)
+
+    if (kind === 'asset-original' || kind === 'asset-thumbnail') {
+      const imageId = pathParts[0]
+
+      return typeof imageId === 'string' && imageId.length > 0
+        ? {
+            kind,
+            imageId: decodeURIComponent(imageId),
+          }
+        : null
+    }
+
     const jobId = parseImageProtocolJobId(pathParts[0])
     const index = parseImageProtocolIndex(pathParts[1])
 
@@ -98,6 +120,31 @@ function parseImageProtocolUrl(url: string) {
   } catch {
     return null
   }
+}
+
+function createThumbnailResponse(imagePath: string) {
+  const image = nativeImage.createFromPath(imagePath)
+
+  if (image.isEmpty()) {
+    return new Response('Image not found', { status: 404 })
+  }
+
+  const thumbnail = image.resize({
+    height: THUMBNAIL_SIZE,
+    quality: 'good',
+    width: THUMBNAIL_SIZE,
+  })
+
+  const pngBuffer = thumbnail.toPNG()
+  const pngBytes = new ArrayBuffer(pngBuffer.byteLength)
+  new Uint8Array(pngBytes).set(pngBuffer)
+
+  return new Response(pngBytes, {
+    headers: {
+      'cache-control': 'public, max-age=31536000, immutable',
+      'content-type': 'image/png',
+    },
+  })
 }
 
 function parseImageProtocolKind(parsedUrl: URL): ImageProtocolUrl['kind'] | null {

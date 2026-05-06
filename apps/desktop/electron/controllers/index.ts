@@ -1,3 +1,4 @@
+import { AssetController } from './assetController'
 import { CodexController } from './codexController'
 import { ImageHistoryController } from './imageHistoryController'
 import { ImageGenerationController } from './imageGenerationController'
@@ -5,6 +6,7 @@ import { PromptController } from './promptController'
 import { SettingsController } from './settingsController'
 import { SystemController } from './systemController'
 import { WindowController } from './windowController'
+import { AssetService } from '../services/assetService'
 import { CodexImageProvider } from '../providers/codexImageProvider'
 import { CodexService } from '../services/codexService'
 import { CodexCleanupService } from '../services/codexCleanupService'
@@ -21,6 +23,7 @@ export function registerControllers() {
   const settingsService = new SettingsService(databaseService)
   const imageLibraryService = new ImageLibraryService(settingsService)
   const imageHistoryService = new ImageHistoryService(databaseService)
+  const assetService = new AssetService(databaseService)
   const codexCleanupService = new CodexCleanupService(databaseService, settingsService)
   const codexImageProvider = new CodexImageProvider()
   const codexService = new CodexService()
@@ -35,6 +38,7 @@ export function registerControllers() {
 
   const controllers = [
     new CodexController(codexService),
+    new AssetController(assetService),
     new ImageGenerationController(imageGenerationService),
     new SettingsController(settingsService),
     new ImageHistoryController(imageHistoryService, settingsService),

@@ -45,6 +45,8 @@ export class DatabaseService {
     database.exec(databaseSchema)
     this.ensureColumn(database, 'generation_tasks', 'references_json', 'TEXT')
     this.ensureColumn(database, 'generation_tasks', 'aspect_ratio', 'TEXT')
+    this.ensureColumn(database, 'generation_tasks', 'generation_params', 'TEXT')
+    this.ensureColumn(database, 'generated_images', 'favorite', 'INTEGER NOT NULL DEFAULT 0')
     logger.info('database schema ensured')
   }
 

@@ -1,4 +1,5 @@
 import type { CodexEnvironment, CodexUsageSummary } from './codex'
+import type { AssetImageDetail, AssetListQuery, AssetListResult, AssetStats } from './assets'
 import type { ImageHistoryTask } from './imageHistory'
 import type {
   ImageGenerationEvent,
@@ -30,6 +31,10 @@ export interface ElectronApi {
   updateSettings: (settings: UpdateAppSettingsRequest) => Promise<AppSettings>
   selectImageLibraryFolder: (currentPath?: string) => Promise<string | null>
   listRecentImageTasks: (limit?: number) => Promise<ImageHistoryTask[]>
+  listAssets: (query?: AssetListQuery) => Promise<AssetListResult>
+  getAssetDetail: (imageId: string) => Promise<AssetImageDetail | null>
+  getAssetStats: () => Promise<AssetStats>
+  setAssetFavorite: (imageId: string, favorite: boolean) => Promise<void>
   openImageLibraryFolder: () => Promise<void>
   openImageFileLocation: (imagePath: string) => Promise<void>
   openExternalUrl: (url: string) => Promise<void>

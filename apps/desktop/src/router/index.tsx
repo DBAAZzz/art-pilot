@@ -1,10 +1,11 @@
 import { createHashRouter } from 'react-router'
 
-import { AssetManagementPage } from '@/features/AssetManagement'
+import { AssetDetailPage, AssetManagementPage } from '@/features/AssetManagement'
 import { ImageGenerationPage } from '@/features/ImageGeneration'
 import { PromptManagementPage } from '@/features/PromptManagement'
 import { SettingPage } from '@/features/Setting'
 import { AppLayout } from '@/layout/AppLayout'
+import { AppNoHeaderLayout } from '@/layout/AppNoHeaderLayout'
 
 export const router = createHashRouter([
   {
@@ -44,6 +45,21 @@ export const router = createHashRouter([
         handle: {
           meta: {
             title: '设置',
+          },
+        },
+      },
+    ],
+  },
+  {
+    path: '/assets/:imageId',
+    element: <AppNoHeaderLayout />,
+    children: [
+      {
+        index: true,
+        element: <AssetDetailPage />,
+        handle: {
+          meta: {
+            title: '资产详情',
           },
         },
       },

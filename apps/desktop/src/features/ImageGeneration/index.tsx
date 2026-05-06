@@ -1,6 +1,7 @@
 import { IMAGE_GENERATION_EVENT_TYPES, MAX_IMAGE_REFERENCES } from '@art-pilot/shared'
 import type { ImageGenerationAspectRatio, ImageGenerationEvent, ImageGenerationSize, ImageHistoryTask, ImageReference } from '@art-pilot/shared'
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useLocation } from 'react-router'
 
 import { GenerationForm } from './GenerationForm'
 import { type AspectRatio, type ImageCount, GenerationOptions } from './GenerationOptions'
@@ -38,6 +39,7 @@ const aspectRatioSizeMap: Record<ImageGenerationAspectRatio, ImageGenerationSize
 }
 
 export function ImageGenerationPage() {
+  const location = useLocation()
   const [prompt, setPrompt] = useState('')
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>('1:1')
   const [imageCount, setImageCount] = useState<ImageCount>(1)
@@ -107,6 +109,27 @@ export function ImageGenerationPage() {
   useEffect(() => {
     referencesRef.current = references
   }, [references])
+
+  useEffect(() => {
+    const state = location.state as {
+      assetReuse?: {
+        prompt?: string
+        reference?: ImageReference
+      }
+    } | null
+
+    if (!state?.assetReuse) {
+      return
+    }
+
+    if (state.assetReuse.prompt) {
+      setPrompt(state.assetReuse.prompt)
+    }
+
+    if (state.assetReuse.reference) {
+      addReferences([state.assetReuse.reference])
+    }
+  }, [location.state])
 
   async function startGeneration() {
     const trimmedPrompt = prompt.trim()

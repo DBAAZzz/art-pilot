@@ -127,9 +127,10 @@ export class ImageGenerationService {
       throw error
     }
     logger.info(
-      '%s image generation job created: count=%d size=%s references=%d promptLength=%d',
+      '%s image generation job created: count=%d aspectRatio=%s size=%s references=%d promptLength=%d',
       this.formatJobLogContext(activeJob),
       normalizedRequest.count,
+      normalizedRequest.aspectRatio ?? 'default',
       normalizedRequest.size ?? 'default',
       normalizedRequest.references.length,
       normalizedRequest.prompt.length,
@@ -145,6 +146,7 @@ export class ImageGenerationService {
       jobId,
       prompt: taskRequest.prompt,
       count: activeJob.expectedCount,
+      aspectRatio: taskRequest.aspectRatio,
       size: taskRequest.size,
       references: taskRequest.references,
       createdAt: activeJob.startedAt,

@@ -44,6 +44,7 @@ export class DatabaseService {
     // v1 采用幂等建表：开发环境和用户升级时重复启动不会破坏已有数据。
     database.exec(databaseSchema)
     this.ensureColumn(database, 'generation_tasks', 'references_json', 'TEXT')
+    this.ensureColumn(database, 'generation_tasks', 'aspect_ratio', 'TEXT')
     logger.info('database schema ensured')
   }
 

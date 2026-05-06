@@ -1,4 +1,4 @@
-import type { ImageGenerationSize, ImageReference } from './imageGeneration'
+import type { ImageGenerationAspectRatio, ImageGenerationSize, ImageReference } from './imageGeneration'
 
 export type GenerationTaskStatus = 'running' | 'complete' | 'error' | 'cancelled'
 
@@ -22,6 +22,7 @@ export type ImageHistoryTask = {
   codexThreadId?: string
   prompt: string
   count: number
+  aspectRatio?: ImageGenerationAspectRatio | string
   size?: ImageGenerationSize | string
   status: GenerationTaskStatus
   error?: string

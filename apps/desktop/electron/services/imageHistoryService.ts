@@ -16,6 +16,7 @@ type TaskRow = {
   codex_thread_id: string | null
   prompt: string
   count: number
+  aspect_ratio: string | null
   size: string | null
   references_json: string | null
   status: GenerationTaskStatus
@@ -49,22 +50,24 @@ export class ImageHistoryService {
     createdAt: number
   }) {
     logger.info(
-      'creating image generation task history: jobId=%s count=%d size=%s promptLength=%d',
+      'creating image generation task history: jobId=%s count=%d aspectRatio=%s size=%s promptLength=%d',
       input.jobId,
       input.count,
+      input.request.aspectRatio ?? 'default',
       input.request.size ?? 'default',
       input.request.prompt.length,
     )
     this.databaseService
       .getConnection()
       .prepare(`
-        INSERT INTO generation_tasks (id, prompt, count, size, references_json, status, created_at)
-        VALUES (?, ?, ?, ?, ?, 'running', ?)
+        INSERT INTO generation_tasks (id, prompt, count, aspect_ratio, size, references_json, status, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, 'running', ?)
       `)
       .run(
         input.jobId,
         input.request.prompt,
         input.count,
+        input.request.aspectRatio ?? null,
         input.request.size ?? null,
         serializeReferences(input.request.references ?? []),
         input.createdAt,
@@ -166,6 +169,7 @@ export class ImageHistoryService {
       codexThreadId: task.codex_thread_id ?? undefined,
       prompt: task.prompt,
       count: task.count,
+      aspectRatio: task.aspect_ratio ?? undefined,
       size: task.size ?? undefined,
       status: task.status,
       error: task.error ?? undefined,

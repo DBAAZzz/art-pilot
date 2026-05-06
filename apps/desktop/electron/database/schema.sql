@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS generation_tasks (
   codex_thread_id TEXT,
   prompt TEXT NOT NULL,
   count INTEGER NOT NULL,
+  aspect_ratio TEXT,
   size TEXT,
   references_json TEXT,
   status TEXT NOT NULL,

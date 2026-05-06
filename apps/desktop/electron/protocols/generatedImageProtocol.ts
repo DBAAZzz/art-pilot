@@ -3,9 +3,11 @@ import { stat } from 'node:fs/promises'
 import { pathToFileURL } from 'node:url'
 import { generatedImageRegistry } from './generatedImageRegistry'
 import { createLogger } from '../utils/logger'
+import type { ImageProtocolUrl } from '../types/generatedImageProtocol'
 
 const logger = createLogger('art-pilot:image-protocol')
 const GENERATED_IMAGE_SCHEME = 'artpilot-image'
+const IMAGE_PROTOCOL_KINDS = new Set<ImageProtocolUrl['kind']>(['generated', 'reference'])
 
 export function registerGeneratedImageProtocolScheme() {
   logger.info('registering generated image protocol scheme: scheme=%s', GENERATED_IMAGE_SCHEME)
@@ -37,21 +39,21 @@ export function registerGeneratedImageProtocolHandler() {
       logger.warn(
         'image request missed registry: kind=%s jobId=%s index=%d',
         parsedUrl.kind,
-        'jobId' in parsedUrl ? parsedUrl.jobId : parsedUrl.referenceId,
-        'index' in parsedUrl ? parsedUrl.index : 0,
+        parsedUrl.jobId,
+        parsedUrl.index,
       )
       return new Response('Image not found', { status: 404 })
     }
 
-    if (!(await isAllowedGeneratedImagePath(imagePath))) {
+    if (!(await isRegisteredFile(imagePath))) {
       logger.warn(
-        'blocked image path outside allowed directories: kind=%s jobId=%s index=%d path=%s',
+        'blocked registered image path that is not a file: kind=%s jobId=%s index=%d path=%s',
         parsedUrl.kind,
-        'jobId' in parsedUrl ? parsedUrl.jobId : parsedUrl.referenceId,
-        'index' in parsedUrl ? parsedUrl.index : 0,
+        parsedUrl.jobId,
+        parsedUrl.index,
         imagePath,
       )
-      return new Response('Image path is not allowed', { status: 403 })
+      return new Response('Registered image is not a file', { status: 403 })
     }
 
     logger.debug('serving image: kind=%s path=%s', parsedUrl.kind, imagePath)
@@ -68,47 +70,29 @@ function getRegisteredImagePath(parsedUrl: ImageProtocolUrl) {
     return generatedImageRegistry.getReference(parsedUrl.jobId, parsedUrl.index)
   }
 
-  return generatedImageRegistry.getDraftReference(parsedUrl.referenceId)
+  return undefined
 }
 
 function parseImageProtocolUrl(url: string) {
   try {
     const parsedUrl = new URL(url)
+    const kind = parseImageProtocolKind(parsedUrl)
 
-    if (
-      parsedUrl.protocol !== `${GENERATED_IMAGE_SCHEME}:`
-      || (
-        parsedUrl.hostname !== 'generated'
-        && parsedUrl.hostname !== 'reference'
-        && parsedUrl.hostname !== 'reference-draft'
-      )
-    ) {
+    if (!kind) {
       return null
     }
 
-    if (parsedUrl.hostname === 'reference-draft') {
-      const [encodedReferenceId] = parsedUrl.pathname.split('/').filter(Boolean)
+    const pathParts = parsedUrl.pathname.split('/').filter(Boolean)
+    const jobId = parseImageProtocolJobId(pathParts[0])
+    const index = parseImageProtocolIndex(pathParts[1])
 
-      if (!encodedReferenceId) {
-        return null
-      }
-
-      return {
-        kind: 'reference-draft' as const,
-        referenceId: decodeURIComponent(encodedReferenceId),
-      }
-    }
-
-    const [encodedJobId, indexValue] = parsedUrl.pathname.split('/').filter(Boolean)
-    const index = Number(indexValue)
-
-    if (!encodedJobId || !Number.isInteger(index) || index < 0) {
+    if (!jobId || index === null) {
       return null
     }
 
     return {
-      kind: parsedUrl.hostname as 'generated' | 'reference',
-      jobId: decodeURIComponent(encodedJobId),
+      kind,
+      jobId,
       index,
     }
   } catch {
@@ -116,23 +100,27 @@ function parseImageProtocolUrl(url: string) {
   }
 }
 
-type ImageProtocolUrl =
-  | {
-      kind: 'generated'
-      jobId: string
-      index: number
-    }
-  | {
-      kind: 'reference'
-      jobId: string
-      index: number
-    }
-  | {
-      kind: 'reference-draft'
-      referenceId: string
-    }
+function parseImageProtocolKind(parsedUrl: URL): ImageProtocolUrl['kind'] | null {
+  if (parsedUrl.protocol !== `${GENERATED_IMAGE_SCHEME}:`) {
+    return null
+  }
 
-async function isAllowedGeneratedImagePath(imagePath: string) {
+  return IMAGE_PROTOCOL_KINDS.has(parsedUrl.hostname as ImageProtocolUrl['kind'])
+    ? parsedUrl.hostname as ImageProtocolUrl['kind']
+    : null
+}
+
+function parseImageProtocolJobId(encodedJobId: string | undefined) {
+  return encodedJobId ? decodeURIComponent(encodedJobId) : null
+}
+
+function parseImageProtocolIndex(indexValue: string | undefined) {
+  const index = Number(indexValue)
+
+  return Number.isInteger(index) && index >= 0 ? index : null
+}
+
+async function isRegisteredFile(imagePath: string) {
   try {
     const fileStat = await stat(imagePath)
 

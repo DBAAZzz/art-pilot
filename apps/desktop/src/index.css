@@ -82,7 +82,7 @@ body,
 body {
   margin: 0;
   overflow: hidden;
-  background: #fffref;
+  background: var(--app-background);
   color: #1f2937;
   font-family: var(--font-sans);
   font-size: var(--text-base);

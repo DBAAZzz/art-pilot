@@ -1,14 +1,11 @@
 import { createLogger } from '../utils/logger'
+import type { GeneratedImageKey, ReferenceImageKey } from '../types/generatedImageProtocol'
 
 const logger = createLogger('art-pilot:image-registry')
-
-type GeneratedImageKey = `${string}:${number}`
-type ReferenceImageKey = `${string}:reference:${number}`
 
 export class GeneratedImageRegistry {
   private readonly imagePaths = new Map<GeneratedImageKey, string>()
   private readonly referencePaths = new Map<ReferenceImageKey, string>()
-  private readonly draftReferencePaths = new Map<string, string>()
 
   register(jobId: string, index: number, imagePath: string) {
     this.imagePaths.set(this.createKey(jobId, index), imagePath)
@@ -48,10 +45,6 @@ export class GeneratedImageRegistry {
       deletedCount,
       deletedReferenceCount,
     )
-  }
-
-  unregisterTask(jobId: string) {
-    this.clearJob(jobId)
   }
 
   pruneTaskIds(visibleTaskIds: Iterable<string>) {
@@ -107,23 +100,6 @@ export class GeneratedImageRegistry {
 
   createReferenceImageUrl(jobId: string, index: number) {
     return `artpilot-image://reference/${encodeURIComponent(jobId)}/${index}`
-  }
-
-  registerDraftReference(referenceId: string, imagePath: string) {
-    this.draftReferencePaths.set(referenceId, imagePath)
-    logger.info('registered draft reference image: referenceId=%s path=%s', referenceId, imagePath)
-  }
-
-  getDraftReference(referenceId: string) {
-    const imagePath = this.draftReferencePaths.get(referenceId)
-
-    logger.debug('lookup draft reference image: referenceId=%s found=%s', referenceId, String(Boolean(imagePath)))
-
-    return imagePath
-  }
-
-  createDraftReferenceImageUrl(referenceId: string) {
-    return `artpilot-image://reference-draft/${encodeURIComponent(referenceId)}`
   }
 
   private createKey(jobId: string, index: number): GeneratedImageKey {

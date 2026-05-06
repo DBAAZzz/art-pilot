@@ -34,6 +34,7 @@ Art Pilot 的桌面端数据存储在 SQLite 数据库中，文件名为 `art-pi
 | `codex_thread_id` | `TEXT` | 是 | 生成开始后绑定的 Codex thread id。 |
 | `prompt` | `TEXT` | 否 | 用户提交的生成提示词。 |
 | `count` | `INTEGER` | 否 | 请求生成的图片数量。 |
+| `aspect_ratio` | `TEXT` | 是 | 用户在界面选择的画面比例，用于历史记录恢复展示。 |
 | `size` | `TEXT` | 是 | 请求的图片尺寸；为空表示使用服务默认值。 |
 | `status` | `TEXT` | 否 | 任务状态。当前取值：`running`、`complete`、`error`、`cancelled`。 |
 | `error` | `TEXT` | 是 | 错误或取消原因。 |

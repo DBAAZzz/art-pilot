@@ -30,10 +30,11 @@ export class ImageGenerationController implements Controller {
     ipcMain.handle(IPC_CHANNELS.image.generateStart, (event, request: ImageGenerationRequest) => {
       // 新的 streaming 调用链：这里只启动任务，图片进度由 service 通过 generationEvent 推送。
       logger.info(
-        'streaming image generate requested: sender=%d promptLength=%d count=%s size=%s references=%d',
+        'streaming image generate requested: sender=%d promptLength=%d count=%s aspectRatio=%s size=%s references=%d',
         event.sender.id,
         request.prompt?.length ?? 0,
         String(request.count ?? 'default'),
+        request.aspectRatio ?? 'default',
         request.size ?? 'default',
         request.references?.length ?? 0,
       )

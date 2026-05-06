@@ -1,5 +1,5 @@
 import { IMAGE_GENERATION_EVENT_TYPES, MAX_IMAGE_REFERENCES } from '@art-pilot/shared'
-import type { ImageGenerationEvent, ImageGenerationSize, ImageHistoryTask, ImageReference } from '@art-pilot/shared'
+import type { ImageGenerationAspectRatio, ImageGenerationEvent, ImageGenerationSize, ImageHistoryTask, ImageReference } from '@art-pilot/shared'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { GenerationForm } from './GenerationForm'
@@ -19,7 +19,7 @@ export type RecentTask = {
   codexThreadId?: string
   prompt: string
   count: number
-  aspectRatio: AspectRatio
+  aspectRatio: ImageGenerationAspectRatio
   status: TaskStatus
   createdAt: number
   completedAt?: number
@@ -29,7 +29,7 @@ export type RecentTask = {
   error?: string
 }
 
-const aspectRatioSizeMap: Record<AspectRatio, ImageGenerationSize> = {
+const aspectRatioSizeMap: Record<ImageGenerationAspectRatio, ImageGenerationSize> = {
   '1:1': '1024x1024',
   '4:3': '1536x1024',
   '3:2': '1536x1024',
@@ -122,6 +122,7 @@ export function ImageGenerationPage() {
       await window.api.startImageGeneration({
         prompt: trimmedPrompt,
         count: imageCount,
+        aspectRatio,
         size: aspectRatioSizeMap[aspectRatio],
         references,
       })
@@ -215,7 +216,7 @@ export function ImageGenerationPage() {
             jobId: event.jobId,
             prompt: event.prompt,
             count: event.count,
-            aspectRatio: getAspectRatioFromSize(event.size),
+            aspectRatio: event.aspectRatio ?? getAspectRatioFromSize(event.size),
             status: 'running',
             createdAt: event.createdAt,
             references: event.references ?? [],
@@ -351,7 +352,7 @@ function mapHistoryTaskToRecentTask(task: ImageHistoryTask): RecentTask {
     codexThreadId: task.codexThreadId,
     prompt: task.prompt,
     count: task.count,
-    aspectRatio: getAspectRatioFromSize(task.size),
+    aspectRatio: getAspectRatioFromHistoryTask(task),
     status: task.status,
     createdAt: task.createdAt,
     completedAt: task.completedAt,
@@ -449,7 +450,13 @@ function deleteJobId(jobIds: Set<string>, jobId: string) {
   return nextJobIds
 }
 
-function getAspectRatioFromSize(size: ImageHistoryTask['size']): AspectRatio {
+function getAspectRatioFromHistoryTask(task: ImageHistoryTask): ImageGenerationAspectRatio {
+  return isImageGenerationAspectRatio(task.aspectRatio)
+    ? task.aspectRatio
+    : getAspectRatioFromSize(task.size)
+}
+
+function getAspectRatioFromSize(size: ImageHistoryTask['size']): ImageGenerationAspectRatio {
   // v1 数据库只保存实际传给 Codex 的尺寸；恢复 UI 时映射到最接近的比例标签。
   if (size === '1024x1536') {
     return '9:16'
@@ -460,4 +467,12 @@ function getAspectRatioFromSize(size: ImageHistoryTask['size']): AspectRatio {
   }
 
   return '1:1'
+}
+
+function isImageGenerationAspectRatio(value: unknown): value is ImageGenerationAspectRatio {
+  return value === '1:1'
+    || value === '4:3'
+    || value === '3:2'
+    || value === '16:9'
+    || value === '9:16'
 }

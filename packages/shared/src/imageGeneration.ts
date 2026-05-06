@@ -11,6 +11,7 @@ export type ImageGenerationEventType =
   (typeof IMAGE_GENERATION_EVENT_TYPES)[keyof typeof IMAGE_GENERATION_EVENT_TYPES]
 
 export type ImageGenerationSize = 'auto' | '1024x1024' | '1536x1024' | '1024x1536'
+export type ImageGenerationAspectRatio = '1:1' | '4:3' | '3:2' | '16:9' | '9:16'
 
 export const MAX_IMAGE_REFERENCES = 5
 export const MAX_IMAGE_REFERENCE_FILE_SIZE = 50 * 1024 * 1024
@@ -28,6 +29,8 @@ export type ImageGenerationRequest = {
   prompt: string
   // count 只表达“期望生成几张图”，主进程不会把它拆成多个 Codex 进程。
   count?: number
+  // aspectRatio 表达用户在 UI 中选择的比例，用于历史记录恢复展示。
+  aspectRatio?: ImageGenerationAspectRatio
   // size 作为用户意图写入 Codex prompt，不在 renderer 侧解释。
   size?: ImageGenerationSize
   // v1 只支持本地参考图路径，由主进程通过 codex --image <path> 传入。
@@ -46,6 +49,7 @@ export type ImageGenerationEvent =
       jobId: string
       prompt: string
       count: number
+      aspectRatio?: ImageGenerationAspectRatio
       size?: ImageGenerationSize
       references?: ImageReference[]
       createdAt: number

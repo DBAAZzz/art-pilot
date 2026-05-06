@@ -1,4 +1,5 @@
 import type { PromptImportDraft, PromptPreviewImage } from '@art-pilot/shared'
+import { net } from 'electron'
 import { createLogger, formatUrlForLog } from '../utils/logger'
 
 const logger = createLogger('art-pilot:prompt-import-service')
@@ -24,12 +25,7 @@ export class PromptImportService {
     const promptUrl = normalizeYouMindPromptUrl(url)
     logger.info('previewing prompt import: url=%s', formatUrlForLog(promptUrl))
 
-    const response = await fetch(promptUrl, {
-      headers: {
-        accept: 'text/html,application/xhtml+xml',
-        'user-agent': 'Mozilla/5.0 Art Pilot Prompt Importer',
-      },
-    })
+    const response = await fetchPromptPage(promptUrl)
 
     if (!response.ok) {
       throw new Error(`无法读取网页：HTTP ${response.status}`)
@@ -63,6 +59,21 @@ export class PromptImportService {
       categories: extractCategories(html),
       previewImages,
     }
+  }
+}
+
+async function fetchPromptPage(promptUrl: string) {
+  try {
+    return await net.fetch(promptUrl, {
+      headers: {
+        accept: 'text/html,application/xhtml+xml',
+        'user-agent': 'Mozilla/5.0 Art Pilot Prompt Importer',
+      },
+      signal: AbortSignal.timeout(25_000),
+    })
+  } catch (error) {
+    logger.warn('failed to fetch prompt page: url=%s error=%s', formatUrlForLog(promptUrl), getErrorMessage(error))
+    throw new Error('无法连接到提示词页面。请确认网络或代理可访问 YouMind 后重试。')
   }
 }
 
@@ -251,4 +262,8 @@ function unescapeJsonString(value: string) {
 
 function escapeRegExp(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+function getErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : String(error)
 }

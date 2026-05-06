@@ -10,12 +10,15 @@ import {
   LayoutGrid,
   List,
   MessageSquareText,
+  Plus,
   Search,
   SlidersHorizontal,
+  X,
 } from 'lucide-react'
+import type React from 'react'
 import { useEffect, useMemo, useState } from 'react'
 import type { LucideIcon } from 'lucide-react'
-import type { PromptRecord } from '@art-pilot/shared'
+import type { PromptImportDraft, PromptRecord, SavePromptRequest } from '@art-pilot/shared'
 
 import { Button } from '@/components/Button'
 import { ImagePreviewOverlay } from '@/components/ImagePreviewOverlay'
@@ -56,6 +59,8 @@ export function PromptManagementPage() {
   const [copiedPromptId, setCopiedPromptId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [isCreatePromptOpen, setIsCreatePromptOpen] = useState(false)
+  const [creatingPrompt, setCreatingPrompt] = useState(false)
 
   const filteredPrompts = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase()
@@ -168,6 +173,27 @@ export function PromptManagementPage() {
     setViewMode('list')
   }
 
+  async function createPrompt(request: SavePromptRequest) {
+    setCreatingPrompt(true)
+    setError(null)
+
+    try {
+      const savedPrompt = await window.api.savePrompt(request)
+      setPrompts((currentPrompts) => [
+        savedPrompt,
+        ...currentPrompts.filter((prompt) => prompt.id !== savedPrompt.id),
+      ])
+      setSelectedPromptId(savedPrompt.id)
+      setSelectedImageIndex(0)
+      setViewMode('list')
+      setIsCreatePromptOpen(false)
+    } catch (createError) {
+      setError(getErrorMessage(createError))
+    } finally {
+      setCreatingPrompt(false)
+    }
+  }
+
   return (
     <section className="col-span-2 flex min-h-0 flex-col gap-4">
       <PromptPageToolbar
@@ -176,6 +202,7 @@ export function PromptManagementPage() {
         query={query}
         viewMode={viewMode}
         onClearFilters={() => setGalleryFilters(defaultGalleryFilters)}
+        onCreatePrompt={() => setIsCreatePromptOpen(true)}
         onQueryChange={setQuery}
         onViewModeChange={setViewMode}
       />
@@ -198,6 +225,7 @@ export function PromptManagementPage() {
           selectedImageIndex={selectedImageIndex}
           selectedPreviewImage={selectedPreviewImage}
           onCopy={(prompt) => void copyPrompt(prompt)}
+          onCreatePrompt={() => setIsCreatePromptOpen(true)}
           onOpenOriginalSource={() => selectedPrompt ? void openOriginalSource(selectedPrompt) : undefined}
           onSelectImage={setSelectedImageIndex}
           onSelectPrompt={setSelectedPromptId}
@@ -211,10 +239,19 @@ export function PromptManagementPage() {
           prompts={filteredPrompts}
           promptsCount={prompts.length}
           onCopy={(prompt) => void copyPrompt(prompt)}
+          onCreatePrompt={() => setIsCreatePromptOpen(true)}
           onFiltersChange={setGalleryFilters}
           onShowPromptInList={showPromptInList}
         />
       )}
+
+      {isCreatePromptOpen ? (
+        <CreatePromptDialog
+          saving={creatingPrompt}
+          onClose={() => setIsCreatePromptOpen(false)}
+          onSave={(request) => void createPrompt(request)}
+        />
+      ) : null}
 
       {listImagePreview.isOpen && listImagePreview.previewImage ? (
         <ImagePreviewOverlay
@@ -242,6 +279,7 @@ function PromptPageToolbar({
   query,
   viewMode,
   onClearFilters,
+  onCreatePrompt,
   onQueryChange,
   onViewModeChange,
 }: {
@@ -250,6 +288,7 @@ function PromptPageToolbar({
   query: string
   viewMode: PromptViewMode
   onClearFilters: () => void
+  onCreatePrompt: () => void
   onQueryChange: (query: string) => void
   onViewModeChange: (viewMode: PromptViewMode) => void
 }) {
@@ -274,6 +313,10 @@ function PromptPageToolbar({
           清除筛选
         </button>
       ) : null}
+      <Button className="shrink-0 gap-1.5 bg-text-strong text-background-solid hover:bg-text-muted" onClick={onCreatePrompt}>
+        <Plus className="size-3.5" strokeWidth={1.8} />
+        新建提示词
+      </Button>
       <div className="flex shrink-0 rounded-lg bg-fill-hover p-0.5">
         <ViewModeButton
           active={viewMode === 'list'}
@@ -330,6 +373,7 @@ function PromptListView({
   selectedImageIndex,
   selectedPreviewImage,
   onCopy,
+  onCreatePrompt,
   onOpenOriginalSource,
   onSelectImage,
   onSelectPrompt,
@@ -344,6 +388,7 @@ function PromptListView({
   selectedImageIndex: number
   selectedPreviewImage?: PromptRecord['previewImages'][number]
   onCopy: (prompt: PromptRecord) => void
+  onCreatePrompt: () => void
   onOpenOriginalSource: () => void
   onSelectImage: (index: number) => void
   onSelectPrompt: (promptId: string) => void
@@ -378,9 +423,13 @@ function PromptListView({
             </div>
           ) : (
             <EmptyState
+              action={promptsCount > 0 ? undefined : {
+                label: '新建提示词',
+                onClick: onCreatePrompt,
+              }}
               icon={MessageSquareText}
-              title={promptsCount > 0 ? '没有匹配结果' : '暂无已导入提示词'}
-              description={promptsCount > 0 ? '调整关键词或筛选条件试试' : '导入功能后续会放到单独页面'}
+              title={promptsCount > 0 ? '没有匹配结果' : '暂无提示词'}
+              description={promptsCount > 0 ? '调整关键词或筛选条件试试' : '你可以手动创建常用的提示词，或从外部导入。'}
             />
           )}
         </div>
@@ -654,6 +703,7 @@ function PromptGalleryView({
   prompts,
   promptsCount,
   onCopy,
+  onCreatePrompt,
   onFiltersChange,
   onShowPromptInList,
 }: {
@@ -664,6 +714,7 @@ function PromptGalleryView({
   prompts: PromptRecord[]
   promptsCount: number
   onCopy: (prompt: PromptRecord) => void
+  onCreatePrompt: () => void
   onFiltersChange: (filters: GalleryFilters) => void
   onShowPromptInList: (prompt: PromptRecord) => void
 }) {
@@ -716,9 +767,13 @@ function PromptGalleryView({
           </div>
         ) : (
           <EmptyState
+            action={promptsCount > 0 ? undefined : {
+              label: '新建提示词',
+              onClick: onCreatePrompt,
+            }}
             icon={Images}
-            title={promptsCount > 0 ? '没有匹配结果' : '暂无已导入提示词'}
-            description={promptsCount > 0 ? '调整关键词或筛选条件试试' : '导入功能后续会放到单独页面'}
+            title={promptsCount > 0 ? '没有匹配结果' : '暂无提示词'}
+            description={promptsCount > 0 ? '调整关键词或筛选条件试试' : '你可以手动创建常用的提示词，或从外部导入。'}
           />
         )}
       </div>
@@ -956,6 +1011,211 @@ function PromptGalleryCard({
   )
 }
 
+function CreatePromptDialog({
+  saving,
+  onClose,
+  onSave,
+}: {
+  saving: boolean
+  onClose: () => void
+  onSave: (request: SavePromptRequest) => void
+}) {
+  const [mode, setMode] = useState<'manual' | 'url'>('manual')
+  const [importUrl, setImportUrl] = useState('')
+  const [importDraft, setImportDraft] = useState<PromptImportDraft | null>(null)
+  const [importing, setImporting] = useState(false)
+  const [importError, setImportError] = useState<string | null>(null)
+  const [title, setTitle] = useState('')
+  const [description, setDescription] = useState('')
+  const [content, setContent] = useState('')
+  const [categories, setCategories] = useState('')
+  const [previewImages, setPreviewImages] = useState<PromptImportDraft['previewImages']>([])
+  const canSave = title.trim().length > 0 && content.trim().length > 0 && !saving
+
+  async function previewImport() {
+    setImporting(true)
+    setImportError(null)
+
+    try {
+      const draft = await window.api.previewPromptImport(importUrl)
+      setImportDraft(draft)
+      setTitle(draft.title)
+      setDescription(draft.description ?? '')
+      setContent(draft.content)
+      setCategories(draft.categories.join(', '))
+      setPreviewImages(draft.previewImages)
+    } catch (error) {
+      setImportError(getErrorMessage(error))
+    } finally {
+      setImporting(false)
+    }
+  }
+
+  function submitForm(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+
+    if (!canSave) {
+      return
+    }
+
+    const sourceDraft = mode === 'url' ? importDraft : null
+
+    onSave({
+      title,
+      description,
+      content,
+      sourceSite: sourceDraft?.sourceSite ?? 'manual',
+      sourceUrl: sourceDraft?.sourceUrl,
+      sourceAuthor: sourceDraft?.sourceAuthor,
+      originalSourceUrl: sourceDraft?.originalSourceUrl,
+      originalLanguage: sourceDraft?.originalLanguage,
+      categories: parseCategoryInput(categories),
+      previewImages: mode === 'url' ? previewImages : [],
+    })
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 px-6 py-6">
+      <form className="flex max-h-full w-full max-w-2xl flex-col rounded-lg border border-border bg-background-solid shadow-xl" onSubmit={submitForm}>
+        <header className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-5 py-4">
+          <div>
+            <h2 className="text-base font-semibold text-text-strong">新建提示词</h2>
+            <p className="mt-1 text-base text-text-muted">保存常用提示词，之后可以在库里快速查找和复制。</p>
+          </div>
+          <button
+            aria-label="关闭"
+            className="inline-flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-fill-hover hover:text-text-strong"
+            disabled={saving}
+            type="button"
+            onClick={onClose}
+          >
+            <X className="size-4" strokeWidth={1.8} />
+          </button>
+        </header>
+
+        <div className="art-pilot-scrollbar min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-5">
+          <div className="flex rounded-lg bg-fill-hover p-0.5">
+            <button
+              aria-pressed={mode === 'manual'}
+              className={cn(
+                'h-8 flex-1 cursor-pointer rounded-md px-3 text-base font-semibold transition-colors',
+                mode === 'manual' ? 'bg-background-solid text-text-strong shadow-sm' : 'text-text-muted hover:text-text-strong',
+              )}
+              type="button"
+              onClick={() => setMode('manual')}
+            >
+              手动创建
+            </button>
+            <button
+              aria-pressed={mode === 'url'}
+              className={cn(
+                'h-8 flex-1 cursor-pointer rounded-md px-3 text-base font-semibold transition-colors',
+                mode === 'url' ? 'bg-background-solid text-text-strong shadow-sm' : 'text-text-muted hover:text-text-strong',
+              )}
+              type="button"
+              onClick={() => setMode('url')}
+            >
+              从 URL 导入
+            </button>
+          </div>
+
+          {mode === 'url' ? (
+            <div className="rounded-lg border border-border bg-background-subtle p-3">
+              <label className="block">
+                <span className="mb-1.5 block text-base font-semibold text-text-strong">提示词链接</span>
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="粘贴 YouMind 提示词详情页链接"
+                    value={importUrl}
+                    onChange={(event) => setImportUrl(event.target.value)}
+                  />
+                  <Button className="shrink-0" disabled={importing || !importUrl.trim()} onClick={() => void previewImport()}>
+                    {importing ? '获取中...' : '获取预览'}
+                  </Button>
+                </div>
+              </label>
+              {importError ? <p className="mt-2 text-base text-text-error">{importError}</p> : null}
+              {importDraft ? (
+                <div className="mt-3 flex flex-wrap gap-2 text-base text-text-muted">
+                  <span className="rounded-md bg-fill-hover px-2 py-1">来源：{getSourceSiteLabel(importDraft.sourceSite)}</span>
+                  {importDraft.sourceAuthor ? <span className="rounded-md bg-fill-hover px-2 py-1">作者：{importDraft.sourceAuthor}</span> : null}
+                  {importDraft.previewImages.length > 0 ? <span className="rounded-md bg-fill-hover px-2 py-1">{importDraft.previewImages.length} 张预览图</span> : null}
+                  {importDraft.categories.length > 0 ? <span className="rounded-md bg-fill-hover px-2 py-1">{importDraft.categories.length} 个分类</span> : null}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+
+          {previewImages.length > 0 ? (
+            <div>
+              <div className="mb-2 text-base font-semibold text-text-strong">预览图</div>
+              <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+                {previewImages.map((image, index) => (
+                  <div className="aspect-square overflow-hidden rounded-lg bg-fill" key={`${image.url}-${index}`}>
+                    <img
+                      alt={image.alt ?? `预览图 ${index + 1}`}
+                      className="size-full object-cover"
+                      src={image.url}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
+          <label className="block">
+            <span className="mb-1.5 block text-base font-semibold text-text-strong">标题</span>
+            <Input
+              autoFocus
+              placeholder="例如：产品海报背景生成"
+              value={title}
+              onChange={(event) => setTitle(event.target.value)}
+            />
+          </label>
+
+          <label className="block">
+            <span className="mb-1.5 block text-base font-semibold text-text-strong">描述</span>
+            <Input
+              placeholder="可选，用来说明适用场景"
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
+            />
+          </label>
+
+          <label className="block">
+            <span className="mb-1.5 block text-base font-semibold text-text-strong">Prompt</span>
+            <textarea
+              className="min-h-48 w-full resize-y rounded-lg border border-border bg-fill px-3 py-2 text-base font-medium leading-6 text-text-strong outline-none transition-colors placeholder:text-text-muted focus:border-border-hover disabled:cursor-not-allowed disabled:opacity-50"
+              placeholder="输入要保存的提示词内容"
+              value={content}
+              onChange={(event) => setContent(event.target.value)}
+            />
+          </label>
+
+          <label className="block">
+            <span className="mb-1.5 block text-base font-semibold text-text-strong">分类</span>
+            <Input
+              placeholder="可选，用逗号分隔，例如：海报, 电商, 写实"
+              value={categories}
+              onChange={(event) => setCategories(event.target.value)}
+            />
+          </label>
+        </div>
+
+        <footer className="flex shrink-0 justify-end gap-2 border-t border-border px-5 py-4">
+          <Button disabled={saving} variant="ghost" onClick={onClose}>
+            取消
+          </Button>
+          <Button className="gap-1.5 bg-text-strong text-background-solid hover:bg-text-muted" disabled={!canSave} type="submit">
+            <Plus className="size-3.5" strokeWidth={1.8} />
+            {saving ? '保存中...' : '保存提示词'}
+          </Button>
+        </footer>
+      </form>
+    </div>
+  )
+}
+
 function InfoTile({ label, value }: { label: string, value: string }) {
   return (
     <div className="rounded-lg bg-background-subtle px-3 py-2">
@@ -966,10 +1226,15 @@ function InfoTile({ label, value }: { label: string, value: string }) {
 }
 
 function EmptyState({
+  action,
   description,
   icon: Icon,
   title,
 }: {
+  action?: {
+    label: string
+    onClick: () => void
+  }
   description: string
   icon: LucideIcon
   title: string
@@ -982,6 +1247,12 @@ function EmptyState({
         </div>
         <h2 className="text-base font-semibold text-text-strong">{title}</h2>
         <p className="mt-1 text-base text-text-muted">{description}</p>
+        {action ? (
+          <Button className="mt-4 gap-1.5 bg-text-strong text-background-solid hover:bg-text-muted" onClick={action.onClick}>
+            <Plus className="size-3.5" strokeWidth={1.8} />
+            {action.label}
+          </Button>
+        ) : null}
       </div>
     </div>
   )
@@ -1020,6 +1291,10 @@ function getGalleryPlaceholderHeightClass(index: number) {
 
 function isNonEmptyString(value: string | undefined): value is string {
   return typeof value === 'string' && value.trim().length > 0
+}
+
+function parseCategoryInput(value: string) {
+  return [...new Set(value.split(/[,，]/).map((category) => category.trim()).filter(Boolean))]
 }
 
 function getErrorMessage(error: unknown) {

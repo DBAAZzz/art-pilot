@@ -1,7 +1,8 @@
-import { shell, ipcMain } from 'electron'
+import { shell } from 'electron'
 import { mkdir, stat } from 'node:fs/promises'
 import path from 'node:path'
 import { IPC_CHANNELS } from '@art-pilot/shared'
+import { ipcHandler } from './baseController'
 import type { Controller } from './baseController'
 import type { ImageHistoryService } from '../services/imageHistoryService'
 import type { SettingsService } from '../services/settingsService'
@@ -17,11 +18,11 @@ export class ImageHistoryController implements Controller {
 
   register() {
     logger.info('registering image history IPC handlers')
-    ipcMain.handle(IPC_CHANNELS.imageHistory.listRecent, (_event, limit?: number) => {
+    ipcHandler.handle(IPC_CHANNELS.imageHistory.listRecent, (limit?: number) => {
       return this.imageHistoryService.listRecentTasks(limit)
     })
 
-    ipcMain.handle(IPC_CHANNELS.imageHistory.openLibraryFolder, async () => {
+    ipcHandler.handle(IPC_CHANNELS.imageHistory.openLibraryFolder, async () => {
       const imageLibraryPath = this.settingsService.getImageLibraryPath()
       // 打开前先创建目录，避免用户首次进入设置时 Finder 因目录不存在而报错。
       await mkdir(imageLibraryPath, { recursive: true })
@@ -34,7 +35,7 @@ export class ImageHistoryController implements Controller {
       logger.info('opened image library folder: path=%s', imageLibraryPath)
     })
 
-    ipcMain.handle(IPC_CHANNELS.imageHistory.openImageFileLocation, async (_event, imagePath: string) => {
+    ipcHandler.handle(IPC_CHANNELS.imageHistory.openImageFileLocation, async (imagePath: string) => {
       const normalizedImagePath = await this.validateImageLibraryFilePath(imagePath)
       shell.showItemInFolder(normalizedImagePath)
       logger.info('opened image file location: path=%s', normalizedImagePath)

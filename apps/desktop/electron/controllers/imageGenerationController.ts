@@ -1,10 +1,11 @@
-import { app, clipboard, dialog, ipcMain } from 'electron'
+import { app, clipboard, dialog } from 'electron'
 import { randomUUID } from 'node:crypto'
 import { mkdir, readFile, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { IPC_CHANNELS, MAX_IMAGE_REFERENCE_FILE_SIZE } from '@art-pilot/shared'
 import type { ImageGenerationRequest, ImageReference } from '@art-pilot/shared'
+import { getIpcContext, ipcHandler } from './baseController'
 import type { Controller } from './baseController'
 import type { ImageGenerationService } from '../services/imageGenerationService'
 import { createLogger } from '../utils/logger'
@@ -27,26 +28,29 @@ export class ImageGenerationController implements Controller {
   register() {
     logger.info('registering image generation IPC handlers')
 
-    ipcMain.handle(IPC_CHANNELS.image.generateStart, (event, request: ImageGenerationRequest) => {
+    ipcHandler.handle(IPC_CHANNELS.image.generateStart, (request: ImageGenerationRequest) => {
+      const { sender } = getIpcContext()
       // 新的 streaming 调用链：这里只启动任务，图片进度由 service 通过 generationEvent 推送。
       logger.info(
         'streaming image generate requested: sender=%d promptLength=%d count=%s aspectRatio=%s size=%s references=%d',
-        event.sender.id,
+        sender.id,
         request.prompt?.length ?? 0,
         String(request.count ?? 'default'),
         request.aspectRatio ?? 'default',
         request.size ?? 'default',
         request.references?.length ?? 0,
       )
-      return this.imageGenerationService.startImageGeneration(event.sender, request)
+      return this.imageGenerationService.startImageGeneration(sender, request)
     })
-    ipcMain.handle(IPC_CHANNELS.image.cancel, (event, jobId: string) => {
+    ipcHandler.handle(IPC_CHANNELS.image.cancel, (jobId: string) => {
+      const { sender } = getIpcContext()
       // 取消按 Art Pilot jobId 定位 active job，不直接暴露 Codex thread/process 给 renderer。
-      logger.info('image generation cancel requested: sender=%d jobId=%s', event.sender.id, jobId)
+      logger.info('image generation cancel requested: sender=%d jobId=%s', sender.id, jobId)
       return this.imageGenerationService.cancelImageGeneration(jobId)
     })
-    ipcMain.handle(IPC_CHANNELS.image.selectReferences, async (event): Promise<ImageReference[]> => {
-      logger.info('image reference selection requested: sender=%d', event.sender.id)
+    ipcHandler.handle(IPC_CHANNELS.image.selectReferences, async (): Promise<ImageReference[]> => {
+      const { sender } = getIpcContext()
+      logger.info('image reference selection requested: sender=%d', sender.id)
       const result = await dialog.showOpenDialog({
         filters: [
           {
@@ -63,8 +67,9 @@ export class ImageGenerationController implements Controller {
 
       return Promise.all(result.filePaths.map((filePath) => createImageReference(filePath)))
     })
-    ipcMain.handle(IPC_CHANNELS.image.pasteReferences, async (event): Promise<ImageReference[]> => {
-      logger.info('image reference paste requested: sender=%d', event.sender.id)
+    ipcHandler.handle(IPC_CHANNELS.image.pasteReferences, async (): Promise<ImageReference[]> => {
+      const { sender } = getIpcContext()
+      logger.info('image reference paste requested: sender=%d', sender.id)
       const clipboardImage = clipboard.readImage()
 
       if (!clipboardImage.isEmpty()) {
@@ -100,7 +105,7 @@ export class ImageGenerationController implements Controller {
         return fileReferences
       }
 
-      logger.info('image reference paste ignored because clipboard has no image or image file: sender=%d', event.sender.id)
+      logger.info('image reference paste ignored because clipboard has no image or image file: sender=%d', sender.id)
       return []
     })
   }

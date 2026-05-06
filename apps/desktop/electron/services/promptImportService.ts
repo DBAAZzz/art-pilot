@@ -1,5 +1,5 @@
 import type { PromptImportDraft, PromptPreviewImage } from '@art-pilot/shared'
-import { createLogger } from '../utils/logger'
+import { createLogger, formatUrlForLog } from '../utils/logger'
 
 const logger = createLogger('art-pilot:prompt-import-service')
 
@@ -22,7 +22,7 @@ type CreativeWorkJsonLd = {
 export class PromptImportService {
   async previewImport(url: string): Promise<PromptImportDraft> {
     const promptUrl = normalizeYouMindPromptUrl(url)
-    logger.info('previewing prompt import: url=%s', promptUrl)
+    logger.info('previewing prompt import: url=%s', formatUrlForLog(promptUrl))
 
     const response = await fetch(promptUrl, {
       headers: {

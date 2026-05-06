@@ -6,7 +6,7 @@ import { ipcHandler } from './baseController'
 import type { Controller } from './baseController'
 import type { ImageHistoryService } from '../services/imageHistoryService'
 import type { SettingsService } from '../services/settingsService'
-import { createLogger } from '../utils/logger'
+import { createLogger, formatPathForLog } from '../utils/logger'
 
 const logger = createLogger('art-pilot:image-history-controller')
 
@@ -32,13 +32,13 @@ export class ImageHistoryController implements Controller {
         throw new Error(error)
       }
 
-      logger.info('opened image library folder: path=%s', imageLibraryPath)
+      logger.info('opened image library folder: path=%s', formatPathForLog(imageLibraryPath))
     })
 
     ipcHandler.handle(IPC_CHANNELS.imageHistory.openImageFileLocation, async (imagePath: string) => {
       const normalizedImagePath = await this.validateImageLibraryFilePath(imagePath)
       shell.showItemInFolder(normalizedImagePath)
-      logger.info('opened image file location: path=%s', normalizedImagePath)
+      logger.info('opened image file location: path=%s', formatPathForLog(normalizedImagePath))
     })
   }
 

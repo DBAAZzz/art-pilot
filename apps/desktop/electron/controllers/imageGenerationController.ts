@@ -8,7 +8,7 @@ import type { ImageGenerationRequest, ImageReference } from '@art-pilot/shared'
 import { getIpcContext, ipcHandler } from './baseController'
 import type { Controller } from './baseController'
 import type { ImageGenerationService } from '../services/imageGenerationService'
-import { createLogger } from '../utils/logger'
+import { createLogger, formatPathForLog } from '../utils/logger'
 
 const logger = createLogger('art-pilot:image-controller')
 const IMAGE_MIME_TYPE_BY_EXTENSION: Record<string, string> = {
@@ -121,7 +121,7 @@ async function readClipboardImageFileReferences() {
     } catch (error) {
       logger.warn(
         'skipped clipboard image file reference: path=%s error=%s',
-        filePath,
+        formatPathForLog(filePath),
         error instanceof Error ? error.message : String(error),
       )
     }

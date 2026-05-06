@@ -3,7 +3,7 @@ import Database from 'better-sqlite3'
 import { mkdirSync } from 'node:fs'
 import path from 'node:path'
 import databaseSchema from '../database/schema.sql?raw'
-import { createLogger } from '../utils/logger'
+import { createLogger, formatPathForLog } from '../utils/logger'
 
 const logger = createLogger('art-pilot:database-service')
 
@@ -20,7 +20,7 @@ export class DatabaseService {
       this.database.pragma('journal_mode = WAL')
       this.database.pragma('foreign_keys = ON')
       this.runMigrations(this.database)
-      logger.info('opened database: path=%s', databasePath)
+      logger.info('opened database: path=%s', formatPathForLog(databasePath))
     }
 
     return this.database

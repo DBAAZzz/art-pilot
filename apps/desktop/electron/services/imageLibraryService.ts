@@ -4,7 +4,7 @@ import { constants } from 'node:fs'
 import { access, copyFile, mkdir, rename, stat, unlink } from 'node:fs/promises'
 import path from 'node:path'
 import type { SettingsService } from './settingsService'
-import { createLogger } from '../utils/logger'
+import { createLogger, formatPathForLog } from '../utils/logger'
 
 const DEFAULT_IMAGE_EXTENSION = '.png'
 const logger = createLogger('art-pilot:image-library-service')
@@ -29,7 +29,7 @@ export class ImageLibraryService {
     sourcePath: string
     createdAt: number
   }): Promise<ImportedImage> {
-    logger.info('moving codex image to library: jobId=%s index=%d source=%s', input.jobId, input.index, input.sourcePath)
+    logger.info('moving codex image to library: jobId=%s index=%d source=%s', input.jobId, input.index, formatPathForLog(input.sourcePath))
     const sourceStat = await stat(input.sourcePath)
 
     if (!sourceStat.isFile()) {
@@ -45,7 +45,7 @@ export class ImageLibraryService {
       'moved codex image to library: jobId=%s index=%d target=%s bytes=%d width=%s height=%s',
       input.jobId,
       input.index,
-      targetPath,
+      formatPathForLog(targetPath),
       targetStat.size,
       String(imageSize.width || 'unknown'),
       String(imageSize.height || 'unknown'),

@@ -25,7 +25,7 @@ import type { ImageLibraryService, ImportedImage } from './imageLibraryService'
 import { CODEX_STREAM_EVENT_TYPES } from '../utils/codexCli'
 import type { CodexStreamEvent, CodexStreamingChildProcess } from '../utils/codexCli'
 import { findCodexGeneratedImagesFromSessions } from '../utils/generatedImages'
-import { createLogger } from '../utils/logger'
+import { createLogger, formatPathForLog } from '../utils/logger'
 
 const logger = createLogger('art-pilot:image-service')
 const ALLOWED_REFERENCE_EXTENSIONS = new Set(['.apng', '.avif', '.gif', '.jpeg', '.jpg', '.png', '.webp'])
@@ -384,9 +384,9 @@ export class ImageGenerationService {
       } catch (error) {
         activeJob.importFailureCount += 1
         logger.error(
-          '%s failed to import recovered image: sourcePath=%s error=%s',
+          '%s failed to import recovered image: source=%s error=%s',
           this.formatJobLogContext(activeJob),
-          imagePath,
+          formatPathForLog(imagePath),
           error instanceof Error ? error.message : String(error),
         )
       }
@@ -430,16 +430,16 @@ export class ImageGenerationService {
       logger.warn(
         '%s rolled back imported image after database error: source=%s library=%s cause=%s',
         this.formatJobLogContext(activeJob),
-        importedImage.originalCodexPath,
-        importedImage.libraryPath,
+        formatPathForLog(importedImage.originalCodexPath),
+        formatPathForLog(importedImage.libraryPath),
         cause instanceof Error ? cause.message : String(cause),
       )
     } catch (rollbackError) {
       logger.warn(
         '%s failed to rollback imported image after database error: source=%s library=%s cause=%s rollbackError=%s',
         this.formatJobLogContext(activeJob),
-        importedImage.originalCodexPath,
-        importedImage.libraryPath,
+        formatPathForLog(importedImage.originalCodexPath),
+        formatPathForLog(importedImage.libraryPath),
         cause instanceof Error ? cause.message : String(cause),
         rollbackError instanceof Error ? rollbackError.message : String(rollbackError),
       )

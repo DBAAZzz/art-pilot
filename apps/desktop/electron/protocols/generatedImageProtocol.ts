@@ -2,7 +2,7 @@ import { net, protocol } from 'electron'
 import { stat } from 'node:fs/promises'
 import { pathToFileURL } from 'node:url'
 import { generatedImageRegistry } from './generatedImageRegistry'
-import { createLogger } from '../utils/logger'
+import { createLogger, formatPathForLog, formatUrlForLog } from '../utils/logger'
 import type { ImageProtocolUrl } from '../types/generatedImageProtocol'
 
 const logger = createLogger('art-pilot:image-protocol')
@@ -29,7 +29,7 @@ export function registerGeneratedImageProtocolHandler() {
     const parsedUrl = parseImageProtocolUrl(request.url)
 
     if (!parsedUrl) {
-      logger.warn('rejected image request with invalid URL: url=%s', request.url)
+      logger.warn('rejected image request with invalid URL: url=%s', formatUrlForLog(request.url))
       return new Response('Invalid image URL', { status: 400 })
     }
 
@@ -51,7 +51,7 @@ export function registerGeneratedImageProtocolHandler() {
         parsedUrl.kind,
         parsedUrl.jobId,
         parsedUrl.index,
-        imagePath,
+        formatPathForLog(imagePath),
       )
       return new Response('Registered image is not a file', { status: 403 })
     }

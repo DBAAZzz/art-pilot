@@ -5,7 +5,7 @@ import type { UpdateAppSettingsRequest } from '@art-pilot/shared'
 import { getIpcContext, ipcHandler } from './baseController'
 import type { Controller } from './baseController'
 import type { SettingsService } from '../services/settingsService'
-import { createLogger } from '../utils/logger'
+import { createLogger, formatPathForLog } from '../utils/logger'
 
 const logger = createLogger('art-pilot:settings-controller')
 
@@ -41,7 +41,7 @@ export class SettingsController implements Controller {
         return null
       }
 
-      logger.info('image library folder selected: sender=%d path=%s', sender.id, result.filePaths[0])
+      logger.info('image library folder selected: sender=%d path=%s', sender.id, formatPathForLog(result.filePaths[0]))
       return result.filePaths[0]
     })
   }

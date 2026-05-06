@@ -1,4 +1,4 @@
-import { createLogger } from '../utils/logger'
+import { createLogger, formatPathForLog } from '../utils/logger'
 import type { GeneratedImageKey, ReferenceImageKey } from '../types/generatedImageProtocol'
 
 const logger = createLogger('art-pilot:image-registry')
@@ -9,7 +9,7 @@ export class GeneratedImageRegistry {
 
   register(jobId: string, index: number, imagePath: string) {
     this.imagePaths.set(this.createKey(jobId, index), imagePath)
-    logger.info('registered generated image: jobId=%s index=%d path=%s', jobId, index, imagePath)
+    logger.info('registered generated image: jobId=%s index=%d path=%s', jobId, index, formatPathForLog(imagePath))
   }
 
   get(jobId: string, index: number) {
@@ -87,7 +87,7 @@ export class GeneratedImageRegistry {
 
   registerReference(jobId: string, index: number, imagePath: string) {
     this.referencePaths.set(this.createReferenceKey(jobId, index), imagePath)
-    logger.info('registered reference image: jobId=%s index=%d path=%s', jobId, index, imagePath)
+    logger.info('registered reference image: jobId=%s index=%d path=%s', jobId, index, formatPathForLog(imagePath))
   }
 
   getReference(jobId: string, index: number) {

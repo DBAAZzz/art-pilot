@@ -130,9 +130,8 @@ function createThumbnailResponse(imagePath: string) {
   }
 
   const thumbnail = image.resize({
-    height: THUMBNAIL_SIZE,
+    ...getThumbnailResizeOptions(image.getSize()),
     quality: 'good',
-    width: THUMBNAIL_SIZE,
   })
 
   const pngBuffer = thumbnail.toPNG()
@@ -145,6 +144,14 @@ function createThumbnailResponse(imagePath: string) {
       'content-type': 'image/png',
     },
   })
+}
+
+function getThumbnailResizeOptions(size: Electron.Size) {
+  if (size.width >= size.height) {
+    return { width: THUMBNAIL_SIZE }
+  }
+
+  return { height: THUMBNAIL_SIZE }
 }
 
 function parseImageProtocolKind(parsedUrl: URL): ImageProtocolUrl['kind'] | null {

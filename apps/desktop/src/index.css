@@ -139,3 +139,12 @@ input {
 .art-pilot-scrollbar:hover::-webkit-scrollbar-thumb {
   background-color: rgba(0, 0, 0, 0.22);
 }
+
+.art-pilot-hidden-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.art-pilot-hidden-scrollbar::-webkit-scrollbar {
+  display: none;
+}

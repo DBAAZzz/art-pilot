@@ -9,7 +9,6 @@ const SIDEBAR_WIDTH_STORAGE_KEY = 'art-pilot:sidebar-width'
 const DEFAULT_SIDEBAR_WIDTH = 238
 const MIN_SIDEBAR_WIDTH = 180
 const MAX_SIDEBAR_WIDTH = 320
-const CONTENT_OVERLAP = 24
 
 export function AppSidebar() {
   const [width, setWidth] = useState(() => readStoredSidebarWidth())
@@ -93,7 +92,7 @@ export function AppSidebar() {
 
   return (
     <aside
-      className='relative flex shrink-0 flex-col border-r border-slate-200/70 bg-background-subtle px-2 pb-4 pt-14'
+      className='relative flex shrink-0 flex-col bg-background-subtle px-2 pb-4 pt-14'
       style={{ width }}
     >
       <nav aria-label='主导航' className='flex min-w-0 flex-col gap-1'>
@@ -133,7 +132,7 @@ export function AppSidebar() {
         onKeyDown={handleResizeKeyDown}
         onPointerDown={startResize}
         role='separator'
-        style={{ right: CONTENT_OVERLAP - 4 }}
+        style={{ right: -4 }}
         tabIndex={0}
         title='拖动调整宽度，双击恢复默认'
       >

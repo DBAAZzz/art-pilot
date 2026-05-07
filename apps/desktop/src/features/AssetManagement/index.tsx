@@ -11,17 +11,17 @@ import {
   SlidersHorizontal,
   StretchHorizontal,
 } from 'lucide-react'
-import type { AssetImage, AssetListResult, AssetStats } from '@art-pilot/shared'
+import type { AssetImage, AssetStats } from '@art-pilot/shared'
 import type React from 'react'
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router'
 
 import { Button } from '@/components/Button'
 import { Input } from '@/components/Input'
 import { cn } from '@/lib/utils'
+import type { AssetViewMode } from '@/stores/assetManagementStore'
+import { createAssetQueryKey, useAssetManagementStore } from '@/stores/assetManagementStore'
 
-const PAGE_SIZE = 60
-type AssetViewMode = 'date' | 'flat'
 const dateTimeFormatter = new Intl.DateTimeFormat('zh-CN', {
   month: '2-digit',
   day: '2-digit',
@@ -44,102 +44,46 @@ export { AssetDetailPage } from '../AssetDetailPage'
 
 export function AssetManagementPage() {
   const navigate = useNavigate()
-  const isMountedRef = useRef(true)
-  const loadRequestIdRef = useRef(0)
-  const [assets, setAssets] = useState<AssetImage[]>([])
-  const [stats, setStats] = useState<AssetStats | null>(null)
-  const [search, setSearch] = useState('')
-  const [favoriteOnly, setFavoriteOnly] = useState(false)
-  const [viewMode, setViewMode] = useState<AssetViewMode>('date')
-  const [total, setTotal] = useState(0)
-  const [loading, setLoading] = useState(false)
-  const [loadingMore, setLoadingMore] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const assets = useAssetManagementStore((state) => state.assets)
+  const stats = useAssetManagementStore((state) => state.stats)
+  const search = useAssetManagementStore((state) => state.search)
+  const favoriteOnly = useAssetManagementStore((state) => state.favoriteOnly)
+  const viewMode = useAssetManagementStore((state) => state.viewMode)
+  const total = useAssetManagementStore((state) => state.total)
+  const loading = useAssetManagementStore((state) => state.loading)
+  const loadingMore = useAssetManagementStore((state) => state.loadingMore)
+  const error = useAssetManagementStore((state) => state.error)
+  const hasLoaded = useAssetManagementStore((state) => state.hasLoaded)
+  const storedQueryKey = useAssetManagementStore((state) => state.queryKey)
+  const loadAssets = useAssetManagementStore((state) => state.loadAssets)
+  const loadStats = useAssetManagementStore((state) => state.loadStats)
+  const refreshAssets = useAssetManagementStore((state) => state.refreshAssets)
+  const setSearch = useAssetManagementStore((state) => state.setSearch)
+  const setFavoriteOnly = useAssetManagementStore((state) => state.setFavoriteOnly)
+  const setViewMode = useAssetManagementStore((state) => state.setViewMode)
+  const toggleAssetFavorite = useAssetManagementStore((state) => state.toggleFavorite)
+  const assetQueryKey = useMemo(() => createAssetQueryKey(favoriteOnly, search), [favoriteOnly, search])
   const hasMore = assets.length < total
 
-  const loadAssets = useCallback(async (mode: 'replace' | 'append' = 'replace', appendOffset = 0) => {
-    const isAppend = mode === 'append'
-    const requestId = loadRequestIdRef.current + 1
-    loadRequestIdRef.current = requestId
-
-    if (isAppend) {
-      setLoadingMore(true)
-    } else {
-      setLoading(true)
-    }
-
-    setError(null)
-
-    try {
-      const result = await window.api.listAssets({
-        favoriteOnly,
-        limit: PAGE_SIZE,
-        offset: isAppend ? appendOffset : 0,
-        search,
-      })
-
-      if (!isMountedRef.current || requestId !== loadRequestIdRef.current) {
-        return
-      }
-
-      setAssets((currentAssets) => isAppend ? mergeAssetPage(currentAssets, result) : result.items)
-      setTotal(result.total)
-    } catch (loadError) {
-      if (!isMountedRef.current || requestId !== loadRequestIdRef.current) {
-        return
-      }
-
-      setError(loadError instanceof Error ? loadError.message : String(loadError))
-    } finally {
-      if (isMountedRef.current && requestId === loadRequestIdRef.current) {
-        setLoading(false)
-        setLoadingMore(false)
-      }
-    }
-  }, [favoriteOnly, search])
-
   useEffect(() => {
-    isMountedRef.current = true
-
-    return () => {
-      isMountedRef.current = false
-      loadRequestIdRef.current += 1
+    if (hasLoaded && storedQueryKey === assetQueryKey) {
+      return
     }
-  }, [])
 
-  useEffect(() => {
     const timeoutId = window.setTimeout(() => {
       void loadAssets('replace')
     }, 160)
 
     return () => window.clearTimeout(timeoutId)
-  }, [loadAssets])
+  }, [assetQueryKey, hasLoaded, loadAssets, storedQueryKey])
 
   useEffect(() => {
-    let isActive = true
-
-    void loadStats().then((nextStats) => {
-      if (isActive) {
-        setStats(nextStats)
-      }
-    })
-
-    return () => {
-      isActive = false
-    }
-  }, [assets.length])
+    void loadStats()
+  }, [assets.length, loadStats])
 
   const toggleFavorite = useCallback(async (asset: AssetImage) => {
-    const nextFavorite = !asset.favorite
-    await window.api.setAssetFavorite(asset.imageId, nextFavorite)
-    setAssets((currentAssets) =>
-      currentAssets.map((currentAsset) =>
-        currentAsset.imageId === asset.imageId
-          ? { ...currentAsset, favorite: nextFavorite }
-          : currentAsset,
-      ),
-    )
-  }, [])
+    await toggleAssetFavorite(asset)
+  }, [toggleAssetFavorite])
 
   const openImageLocation = useCallback(async (asset: AssetImage) => {
     await window.api.openImageFileLocation(asset.imagePath)
@@ -229,7 +173,7 @@ export function AssetManagementPage() {
             aria-label="重新加载资产"
             className="flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-background-subtle hover:text-text-strong"
             type="button"
-            onClick={() => void loadAssets('replace')}
+            onClick={() => void refreshAssets()}
           >
             <RefreshCw className="size-4" strokeWidth={1.8} />
           </button>
@@ -471,24 +415,6 @@ function StateMessage({ description, icon, title }: { description?: string; icon
       </div>
     </div>
   )
-}
-
-async function loadStats() {
-  try {
-    return await window.api.getAssetStats()
-  } catch {
-    return null
-  }
-}
-
-function mergeAssetPage(currentAssets: AssetImage[], result: AssetListResult) {
-  const assetById = new Map(currentAssets.map((asset) => [asset.imageId, asset]))
-
-  for (const asset of result.items) {
-    assetById.set(asset.imageId, asset)
-  }
-
-  return [...assetById.values()]
 }
 
 function groupAssetsByDate(assets: AssetImage[]) {

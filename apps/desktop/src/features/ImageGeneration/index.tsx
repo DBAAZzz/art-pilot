@@ -37,12 +37,24 @@ const aspectRatioSizeMap: Record<ImageGenerationAspectRatio, ImageGenerationSize
   '16:9': '1536x1024',
   '9:16': '1024x1536',
 }
+const FORM_PANEL_WIDTH_STORAGE_KEY = 'art-pilot:image-generation-form-panel-width'
+const DEFAULT_FORM_PANEL_WIDTH = 360
+const MIN_FORM_PANEL_WIDTH = 300
+const MAX_FORM_PANEL_WIDTH = 520
+const MIN_RECENT_TASKS_WIDTH = 360
+const PANEL_RESIZER_WIDTH = 12
 
 export function ImageGenerationPage() {
   const location = useLocation()
+  const panelContainerRef = useRef<HTMLDivElement | null>(null)
+  const resizeStateRef = useRef<{
+    startX: number
+    startWidth: number
+  } | null>(null)
   const [prompt, setPrompt] = useState('')
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>('1:1')
   const [imageCount, setImageCount] = useState<ImageCount>(1)
+  const [formPanelWidth, setFormPanelWidth] = useState(() => readStoredFormPanelWidth())
   const [activeJobIds, setActiveJobIds] = useState<Set<string>>(() => new Set())
   const [recentTasks, setRecentTasks] = useState<RecentTask[]>([])
   const [startError, setStartError] = useState<string | null>(null)
@@ -100,6 +112,40 @@ export function ImageGenerationPage() {
     })
 
     return unsubscribe
+  }, [])
+
+  useEffect(() => {
+    window.localStorage.setItem(FORM_PANEL_WIDTH_STORAGE_KEY, String(formPanelWidth))
+  }, [formPanelWidth])
+
+  useEffect(() => {
+    const handlePointerMove = (event: PointerEvent) => {
+      const resizeState = resizeStateRef.current
+
+      if (!resizeState) {
+        return
+      }
+
+      setFormPanelWidth(clampFormPanelWidth(resizeState.startWidth + event.clientX - resizeState.startX, panelContainerRef.current))
+    }
+
+    const handlePointerUp = () => {
+      resizeStateRef.current = null
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+    }
+
+    window.addEventListener('pointermove', handlePointerMove)
+    window.addEventListener('pointerup', handlePointerUp)
+    window.addEventListener('pointercancel', handlePointerUp)
+
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove)
+      window.removeEventListener('pointerup', handlePointerUp)
+      window.removeEventListener('pointercancel', handlePointerUp)
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+    }
   }, [])
 
   useEffect(() => {
@@ -226,6 +272,45 @@ export function ImageGenerationPage() {
     setReferences(mergedReferences)
   }
 
+  function startPanelResize(event: React.PointerEvent<HTMLDivElement>) {
+    event.preventDefault()
+    resizeStateRef.current = {
+      startX: event.clientX,
+      startWidth: formPanelWidth,
+    }
+    document.body.style.cursor = 'col-resize'
+    document.body.style.userSelect = 'none'
+  }
+
+  function resetFormPanelWidth() {
+    setFormPanelWidth(clampFormPanelWidth(DEFAULT_FORM_PANEL_WIDTH, panelContainerRef.current))
+  }
+
+  function handlePanelResizeKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
+    if (event.key === 'ArrowLeft') {
+      event.preventDefault()
+      setFormPanelWidth((currentWidth) => clampFormPanelWidth(currentWidth - 8, panelContainerRef.current))
+      return
+    }
+
+    if (event.key === 'ArrowRight') {
+      event.preventDefault()
+      setFormPanelWidth((currentWidth) => clampFormPanelWidth(currentWidth + 8, panelContainerRef.current))
+      return
+    }
+
+    if (event.key === 'Home') {
+      event.preventDefault()
+      setFormPanelWidth(MIN_FORM_PANEL_WIDTH)
+      return
+    }
+
+    if (event.key === 'End') {
+      event.preventDefault()
+      setFormPanelWidth(clampFormPanelWidth(MAX_FORM_PANEL_WIDTH, panelContainerRef.current))
+    }
+  }
+
   function handleImageGenerationEvent(event: ImageGenerationEvent) {
     if (event.type === IMAGE_GENERATION_EVENT_TYPES.started) {
       setActiveJobIds((jobIds) => new Set(jobIds).add(event.jobId))
@@ -324,7 +409,11 @@ export function ImageGenerationPage() {
   }
 
   return (
-    <>
+    <div
+      ref={panelContainerRef}
+      className="col-span-2 grid min-h-0"
+      style={{ gridTemplateColumns: `${formPanelWidth}px ${PANEL_RESIZER_WIDTH}px minmax(0, 1fr)` }}
+    >
       <section className="min-h-0 overflow-y-auto rounded-lg bg-background-solid px-4 py-4">
         <div className="flex w-full flex-col items-stretch">
           <header className="mb-5 text-left">
@@ -363,9 +452,46 @@ export function ImageGenerationPage() {
         </div>
       </section>
 
+      <div
+        aria-label="调整创作面板宽度"
+        aria-orientation="vertical"
+        aria-valuemax={MAX_FORM_PANEL_WIDTH}
+        aria-valuemin={MIN_FORM_PANEL_WIDTH}
+        aria-valuenow={formPanelWidth}
+        className="group flex cursor-col-resize items-stretch justify-center px-[5px]"
+        role="separator"
+        tabIndex={0}
+        title="拖动调整宽度，双击恢复默认"
+        onDoubleClick={resetFormPanelWidth}
+        onKeyDown={handlePanelResizeKeyDown}
+        onPointerDown={startPanelResize}
+      >
+        <span className="my-2 block w-px rounded-full bg-border transition-colors group-hover:bg-border-hover group-focus-visible:bg-border-hover" />
+      </div>
+
       <RecentTaskList tasks={recentTasks} onCancelTask={cancelGeneration} />
-    </>
+    </div>
   )
+}
+
+function readStoredFormPanelWidth() {
+  const storedValue = window.localStorage.getItem(FORM_PANEL_WIDTH_STORAGE_KEY)
+  const parsedValue = storedValue ? Number(storedValue) : DEFAULT_FORM_PANEL_WIDTH
+
+  if (!Number.isFinite(parsedValue)) {
+    return DEFAULT_FORM_PANEL_WIDTH
+  }
+
+  return clampFormPanelWidth(parsedValue)
+}
+
+function clampFormPanelWidth(width: number, container: HTMLElement | null = null) {
+  const containerMaxWidth = container
+    ? container.clientWidth - MIN_RECENT_TASKS_WIDTH - PANEL_RESIZER_WIDTH
+    : MAX_FORM_PANEL_WIDTH
+  const maxWidth = Math.max(MIN_FORM_PANEL_WIDTH, Math.min(MAX_FORM_PANEL_WIDTH, containerMaxWidth))
+
+  return Math.min(maxWidth, Math.max(MIN_FORM_PANEL_WIDTH, Math.round(width)))
 }
 
 function mapHistoryTaskToRecentTask(task: ImageHistoryTask): RecentTask {

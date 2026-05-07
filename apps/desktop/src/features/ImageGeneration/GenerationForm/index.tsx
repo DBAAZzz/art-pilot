@@ -128,7 +128,7 @@ export function GenerationForm({
       <div className="flex w-full flex-col rounded-xl border border-border bg-fill">
         <textarea
           ref={textareaRef}
-          className="h-[150px] w-full shrink-0 resize-none rounded-xl bg-transparent p-3 pb-2 text-base text-text-strong outline-none placeholder:text-text-muted"
+          className="art-pilot-hidden-scrollbar h-[150px] w-full shrink-0 resize-none rounded-xl bg-transparent p-3 pb-2 text-base text-text-strong outline-none placeholder:text-text-muted"
           placeholder="例如：清晨的湖边山谷，薄雾、柔和光线、远处有雪山，画面安静干净..."
           style={{
             fontSize: 'var(--text-base)',
@@ -141,8 +141,8 @@ export function GenerationForm({
         />
 
         {references.length > 0 ? (
-          <div className="shrink-0 px-3 pb-2">
-            <div className="flex flex-col gap-2">
+          <div className="shrink-0 px-3">
+            <div className="flex flex-col gap-2 py-2">
               {references.map((reference, index) => (
                 <div
                   className={cn(
@@ -194,7 +194,7 @@ export function GenerationForm({
           </div>
         ) : null}
 
-        <div className="flex shrink-0 items-center justify-end gap-2 px-3 py-2">
+        <div className="flex shrink-0 items-center justify-end gap-2 px-3 py-1">
         <button
           aria-label="添加参考图"
           className="flex size-8 cursor-pointer items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-fill-hover hover:text-text-strong"

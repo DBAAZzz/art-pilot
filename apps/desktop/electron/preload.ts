@@ -90,6 +90,9 @@ contextBridge.exposeInMainWorld('api', {
   listPromptTemplates: () => {
     return ipcRenderer.invoke(IPC_CHANNELS.prompt.listTemplates)
   },
+  getPromptTemplateById: (templateId: string) => {
+    return ipcRenderer.invoke(IPC_CHANNELS.prompt.getTemplate, templateId)
+  },
   resolvePromptTemplate: (request: ResolvePromptTemplateRequest) => {
     return ipcRenderer.invoke(IPC_CHANNELS.prompt.resolveTemplate, request)
   },

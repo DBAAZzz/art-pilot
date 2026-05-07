@@ -48,6 +48,10 @@ export class DatabaseService {
     this.ensureColumn(database, 'generation_tasks', 'generation_params', 'TEXT')
     this.ensureColumn(database, 'generated_images', 'favorite', 'INTEGER NOT NULL DEFAULT 0')
     this.ensureColumn(database, 'prompts', 'variables_json', 'TEXT NOT NULL DEFAULT \'[]\'')
+    this.ensureColumn(database, 'generation_tasks', 'prompt_template_id', 'TEXT')
+    this.ensureColumn(database, 'generation_tasks', 'prompt_template_title', 'TEXT')
+    this.ensureColumn(database, 'generation_tasks', 'prompt_template_values_json', 'TEXT')
+    this.ensureColumn(database, 'generation_tasks', 'prompt_template_image_bindings_json', 'TEXT')
     database.exec('DROP INDEX IF EXISTS idx_prompts_source_url')
     database.exec(`
       CREATE INDEX IF NOT EXISTS idx_prompts_source_url

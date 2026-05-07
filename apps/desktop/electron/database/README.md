@@ -29,6 +29,10 @@ Art Pilot 桌面端使用 SQLite 存储本地数据，数据库文件名为 `art
 | `generation_tasks` | `aspect_ratio` | `TEXT` |
 | `generation_tasks` | `generation_params` | `TEXT` |
 | `generated_images` | `favorite` | `INTEGER NOT NULL DEFAULT 0` |
+| `generation_tasks` | `prompt_template_id` | `TEXT` |
+| `generation_tasks` | `prompt_template_title` | `TEXT` |
+| `generation_tasks` | `prompt_template_values_json` | `TEXT` |
+| `generation_tasks` | `prompt_template_image_bindings_json` | `TEXT` |
 
 新增表、索引或字段时，需要同步更新：
 
@@ -77,6 +81,10 @@ Art Pilot 桌面端使用 SQLite 存储本地数据，数据库文件名为 `art
 | `size` | `TEXT` | 是 | 请求的图片尺寸；为空表示使用服务默认值。 |
 | `generation_params` | `TEXT` | 是 | 生成参数 JSON，面向资产详情页展示和后续扩展。 |
 | `references_json` | `TEXT` | 是 | 参考图 JSON 数组；无参考图时写入 `NULL`。 |
+| `prompt_template_id` | `TEXT` | 是 | 使用的提示词模板 ID；非模板任务为 `NULL`。 |
+| `prompt_template_title` | `TEXT` | 是 | 模板标题冗余存储，方便历史列表展示。 |
+| `prompt_template_values_json` | `TEXT` | 是 | 用户填写的模板变量值 JSON；非模板任务为 `NULL`。 |
+| `prompt_template_image_bindings_json` | `TEXT` | 是 | 图片变量到参考图序号的映射 JSON；非模板任务为 `NULL`。 |
 | `status` | `TEXT` | 否 | 任务状态。当前取值：`running`、`complete`、`error`、`cancelled`。 |
 | `error` | `TEXT` | 是 | 错误或取消原因。 |
 | `created_at` | `INTEGER` | 否 | 任务创建时间，毫秒级 Unix 时间戳。 |
@@ -96,7 +104,9 @@ Art Pilot 桌面端使用 SQLite 存储本地数据，数据库文件名为 `art
   "sampler": null,
   "cfgScale": null,
   "count": 1,
-  "referenceCount": 0
+  "referenceCount": 0,
+  "promptTemplateId": "template-id",
+  "promptTemplateTitle": "模板标题"
 }
 ```
 

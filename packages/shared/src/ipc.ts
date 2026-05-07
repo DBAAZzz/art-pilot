@@ -37,6 +37,7 @@ export const IPC_CHANNELS = {
     fillFromUrl: 'prompt:fill-from-url',
     saveTemplate: 'prompt:save-template',
     listTemplates: 'prompt:list-templates',
+    getTemplate: 'prompt:get-template',
     resolveTemplate: 'prompt:resolve-template',
     previewImport: 'prompt:preview-import',
     save: 'prompt:save',

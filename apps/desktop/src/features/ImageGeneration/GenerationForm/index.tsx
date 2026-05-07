@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils'
 
 export function GenerationForm({
   isGenerateDisabled,
+  isReadOnly,
   onGenerate,
   prompt,
   onPromptChange,
@@ -20,6 +21,7 @@ export function GenerationForm({
   onSelectReferences,
 }: {
   isGenerateDisabled: boolean
+  isReadOnly?: boolean
   onGenerate: () => void | Promise<void>
   prompt: string
   onPromptChange: (value: string) => void
@@ -128,16 +130,20 @@ export function GenerationForm({
       <div className="flex w-full flex-col rounded-xl border border-border bg-fill">
         <textarea
           ref={textareaRef}
-          className="art-pilot-hidden-scrollbar h-[150px] w-full shrink-0 resize-none rounded-xl bg-transparent p-3 pb-2 text-base text-text-strong outline-none placeholder:text-text-muted"
+          className={cn(
+            'art-pilot-hidden-scrollbar h-[150px] w-full shrink-0 resize-none rounded-xl bg-transparent p-3 pb-2 text-base text-text-strong outline-none placeholder:text-text-muted',
+            isReadOnly && 'cursor-default opacity-80',
+          )}
           placeholder="例如：清晨的湖边山谷，薄雾、柔和光线、远处有雪山，画面安静干净..."
+          readOnly={isReadOnly}
           style={{
             fontSize: 'var(--text-base)',
             lineHeight: 'var(--text-base--line-height)',
           }}
           value={prompt}
           onChange={(event) => onPromptChange(event.target.value)}
-          onKeyDown={handlePromptKeyDown}
-          onPaste={handlePromptPaste}
+          onKeyDown={isReadOnly ? undefined : handlePromptKeyDown}
+          onPaste={isReadOnly ? undefined : handlePromptPaste}
         />
 
         {references.length > 0 ? (

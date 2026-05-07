@@ -118,6 +118,16 @@ export class PromptService {
     return rows.map(mapPromptRow)
   }
 
+  getPromptTemplateById(promptId: string): PromptTemplate | null {
+    const normalizedPromptId = normalizeRequiredText(promptId, '模板 ID 不能为空')
+    const row = this.databaseService
+      .getConnection()
+      .prepare('SELECT * FROM prompts WHERE id = ? LIMIT 1')
+      .get(normalizedPromptId) as PromptRow | undefined
+
+    return row ? mapPromptRow(row) : null
+  }
+
   resolvePromptTemplate(request: ResolvePromptTemplateRequest): ResolvedPromptTemplate {
     if (!request || typeof request !== 'object') {
       throw new Error('模板解析参数不正确')

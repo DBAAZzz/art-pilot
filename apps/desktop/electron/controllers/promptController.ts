@@ -28,6 +28,10 @@ export class PromptController implements Controller {
       return this.promptService.listPromptTemplates()
     })
 
+    ipcHandler.handle(IPC_CHANNELS.prompt.getTemplate, (templateId: string) => {
+      return this.promptService.getPromptTemplateById(templateId)
+    })
+
     ipcHandler.handle(IPC_CHANNELS.prompt.resolveTemplate, (request: ResolvePromptTemplateRequest) => {
       return this.promptService.resolvePromptTemplate(request)
     })

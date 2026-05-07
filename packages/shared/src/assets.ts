@@ -1,5 +1,6 @@
 import type { GenerationTaskStatus } from './imageHistory'
-import type { ImageGenerationAspectRatio, ImageGenerationSize, ImageReference } from './imageGeneration'
+import type { ImageGenerationAspectRatio, ImageGenerationSize, ImageReference, PromptImageBinding } from './imageGeneration'
+import type { PromptVariableValue } from './prompt'
 
 export type AssetGenerationParams = {
   provider: 'codex'
@@ -13,6 +14,8 @@ export type AssetGenerationParams = {
   cfgScale?: number | null
   count?: number | null
   referenceCount?: number | null
+  promptTemplateId?: string | null
+  promptTemplateTitle?: string | null
 }
 
 export type AssetImage = {
@@ -43,6 +46,11 @@ export type AssetImage = {
 
 export type AssetImageDetail = AssetImage & {
   generationParams?: AssetGenerationParams
+  promptTemplateUse?: {
+    templateId: string
+    values: PromptVariableValue[]
+    imageBindings: PromptImageBinding[]
+  }
   references: ImageReference[]
   siblingImages: Array<{
     imageId: string

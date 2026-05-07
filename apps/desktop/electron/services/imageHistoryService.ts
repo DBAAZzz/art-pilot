@@ -3,6 +3,8 @@ import type {
   ImageGenerationRequest,
   ImageHistoryTask,
   ImageReference,
+  PromptImageBinding,
+  PromptVariableValue,
 } from '@art-pilot/shared'
 import type { DatabaseService } from './databaseService'
 import type { ImportedImage } from './imageLibraryService'
@@ -19,6 +21,10 @@ type TaskRow = {
   aspect_ratio: string | null
   size: string | null
   references_json: string | null
+  prompt_template_id: string | null
+  prompt_template_title: string | null
+  prompt_template_values_json: string | null
+  prompt_template_image_bindings_json: string | null
   status: GenerationTaskStatus
   error: string | null
   created_at: number
@@ -60,8 +66,8 @@ export class ImageHistoryService {
     this.databaseService
       .getConnection()
       .prepare(`
-        INSERT INTO generation_tasks (id, prompt, count, aspect_ratio, size, generation_params, references_json, status, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, 'running', ?)
+        INSERT INTO generation_tasks (id, prompt, count, aspect_ratio, size, generation_params, references_json, prompt_template_id, prompt_template_title, prompt_template_values_json, prompt_template_image_bindings_json, status, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'running', ?)
       `)
       .run(
         input.jobId,
@@ -71,6 +77,10 @@ export class ImageHistoryService {
         input.request.size ?? null,
         serializeGenerationParams(input.request, input.count),
         serializeReferences(input.request.references ?? []),
+        input.request.promptTemplateUse?.templateId ?? null,
+        input.request.promptTemplateUse?.templateTitle ?? null,
+        input.request.promptTemplateUse ? JSON.stringify(input.request.promptTemplateUse.values) : null,
+        input.request.promptTemplateUse ? JSON.stringify(input.request.promptTemplateUse.imageBindings) : null,
         input.createdAt,
       )
   }
@@ -176,6 +186,10 @@ export class ImageHistoryService {
       error: task.error ?? undefined,
       createdAt: task.created_at,
       completedAt: task.completed_at ?? undefined,
+      promptTemplateId: task.prompt_template_id ?? undefined,
+      promptTemplateTitle: task.prompt_template_title ?? undefined,
+      promptTemplateValues: parseJsonSafe<PromptVariableValue[]>(task.prompt_template_values_json),
+      promptTemplateImageBindings: parseJsonSafe<PromptImageBinding[]>(task.prompt_template_image_bindings_json),
       references: parseReferences(task.references_json).map((reference, index) => {
         generatedImageRegistry.registerReference(task.id, index, reference.path)
 
@@ -254,6 +268,8 @@ function serializeGenerationParams(request: ImageGenerationRequest, count: numbe
     cfgScale: null,
     count,
     referenceCount: request.references?.length ?? 0,
+    promptTemplateId: request.promptTemplateUse?.templateId ?? null,
+    promptTemplateTitle: request.promptTemplateUse?.templateTitle ?? null,
   })
 }
 
@@ -289,4 +305,16 @@ function isImageReference(reference: unknown): reference is ImageReference {
     && (candidate.name === undefined || typeof candidate.name === 'string')
     && (candidate.mimeType === undefined || typeof candidate.mimeType === 'string')
   )
+}
+
+function parseJsonSafe<T>(json: string | null): T | undefined {
+  if (!json) {
+    return undefined
+  }
+
+  try {
+    return JSON.parse(json) as T
+  } catch {
+    return undefined
+  }
 }

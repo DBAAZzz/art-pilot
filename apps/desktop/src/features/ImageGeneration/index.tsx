@@ -1,10 +1,13 @@
 import { IMAGE_GENERATION_EVENT_TYPES, MAX_IMAGE_REFERENCES } from '@art-pilot/shared'
-import type { ImageGenerationAspectRatio, ImageGenerationEvent, ImageGenerationSize, ImageHistoryTask, ImageReference } from '@art-pilot/shared'
+import type { ImageGenerationAspectRatio, ImageGenerationEvent, ImageGenerationSize, ImageHistoryTask, ImageReference, PromptImageBinding, PromptImageVariable, PromptTemplate } from '@art-pilot/shared'
+import { getImageVariableMaxCount } from '@art-pilot/shared'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useLocation } from 'react-router'
 
 import { GenerationForm } from './GenerationForm'
 import { type AspectRatio, type ImageCount, GenerationOptions } from './GenerationOptions'
+import { PromptTemplateVariablePanel, buildPromptVariableValues, createPromptImageInputValue, mapPromptImagesToReferences } from './PromptTemplateVariablePanel'
+import type { PromptImageInputValue } from './PromptTemplateVariablePanel'
 import { RecentTaskList } from './RecentTaskList'
 import { getErrorMessage, useLoadingState } from '@/hooks/useLoadingState'
 import { usePointerDrag } from '@/hooks/usePointerDrag'
@@ -59,6 +62,14 @@ export function ImageGenerationPage() {
   const [referenceNotice, setReferenceNotice] = useState<string | null>(null)
   const [references, setReferences] = useState<ImageReference[]>([])
   const referencesRef = useRef<ImageReference[]>([])
+
+  // Template runtime state
+  const [template, setTemplate] = useState<PromptTemplate | null>(null)
+  const [templateLoading, setTemplateLoading] = useState(false)
+  const [templateError, setTemplateError] = useState<string | null>(null)
+  const [textValues, setTextValues] = useState<Record<string, string>>({})
+  const [imageValues, setImageValues] = useState<Record<string, PromptImageInputValue[]>>({})
+  const [exitConfirmOpen, setExitConfirmOpen] = useState(false)
   const pendingHistoryReloadJobIdsRef = useRef(new Set<string>())
   const handlePanelResizeDrag = useCallback((event: PointerEvent, resizeState: { startX: number, startWidth: number }) => {
     setFormPanelWidth(clampFormPanelWidth(resizeState.startWidth + event.clientX - resizeState.startX, panelContainerRef.current))
@@ -138,7 +149,8 @@ export function ImageGenerationPage() {
         reference?: ImageReference
       }
       promptTemplateUse?: {
-        prompt: string
+        templateId?: string
+        prompt?: string
         references?: ImageReference[]
       }
     } | null
@@ -148,10 +160,14 @@ export function ImageGenerationPage() {
     }
 
     if (state.promptTemplateUse) {
-      setPrompt(state.promptTemplateUse.prompt)
+      if (state.promptTemplateUse.templateId) {
+        void loadTemplate(state.promptTemplateUse.templateId)
+      } else if (state.promptTemplateUse.prompt) {
+        setPrompt(state.promptTemplateUse.prompt)
 
-      if (state.promptTemplateUse.references?.length) {
-        addReferences(state.promptTemplateUse.references)
+        if (state.promptTemplateUse.references?.length) {
+          addReferences(state.promptTemplateUse.references)
+        }
       }
     }
 
@@ -174,13 +190,38 @@ export function ImageGenerationPage() {
     startState.startLoading()
 
     try {
-      await window.api.startImageGeneration({
-        prompt: trimmedPrompt,
-        count: imageCount,
-        aspectRatio,
-        size: aspectRatioSizeMap[aspectRatio],
-        references,
-      })
+      if (template) {
+        const values = buildPromptVariableValues(template.variables, textValues, imageValues)
+        const resolved = await window.api.resolvePromptTemplate({
+          templateId: template.id,
+          values,
+        })
+        const imageRefs = mapPromptImagesToReferences(resolved.imageInputs, imageValues)
+        const allReferences = [...imageRefs, ...references].slice(0, MAX_IMAGE_REFERENCES)
+        const imageBindings = buildImageBindings(template, imageValues, imageRefs)
+
+        await window.api.startImageGeneration({
+          prompt: resolved.prompt,
+          count: imageCount,
+          aspectRatio,
+          size: aspectRatioSizeMap[aspectRatio],
+          references: allReferences,
+          promptTemplateUse: {
+            templateId: template.id,
+            templateTitle: template.title,
+            values,
+            imageBindings,
+          },
+        })
+      } else {
+        await window.api.startImageGeneration({
+          prompt: trimmedPrompt,
+          count: imageCount,
+          aspectRatio,
+          size: aspectRatioSizeMap[aspectRatio],
+          references,
+        })
+      }
 
       setPrompt('')
       referencesRef.current = []
@@ -196,6 +237,82 @@ export function ImageGenerationPage() {
 
   async function cancelGeneration(jobId: string) {
     await window.api.cancelImageGeneration(jobId)
+  }
+
+  async function loadTemplate(templateId: string) {
+    setTemplateLoading(true)
+    setTemplateError(null)
+
+    try {
+      const loaded = await window.api.getPromptTemplateById(templateId)
+
+      if (!loaded) {
+        setTemplateError('模板不存在或已被删除，请返回提示词管理页重新选择。')
+        return
+      }
+
+      setTemplate(loaded)
+      setTextValues(Object.fromEntries(
+        loaded.variables
+          .filter((v) => v.type === 'text')
+          .map((v) => [v.key, v.type === 'text' ? (v.defaultValue ?? '') : '']),
+      ))
+      setImageValues({})
+      setPrompt(loaded.content)
+    } catch (error) {
+      setTemplateError(getErrorMessage(error))
+    } finally {
+      setTemplateLoading(false)
+    }
+  }
+
+  function exitTemplate() {
+    if (hasTemplateVariablesFilled(template, textValues, imageValues)) {
+      setExitConfirmOpen(true)
+      return
+    }
+
+    clearTemplateState()
+  }
+
+  function handleConfirmExit() {
+    clearTemplateState()
+    setExitConfirmOpen(false)
+  }
+
+  function clearTemplateState() {
+    setTemplate(null)
+    setTextValues({})
+    setImageValues({})
+    setTemplateError(null)
+    setPrompt('')
+  }
+
+  function handleTemplateTextChange(key: string, value: string) {
+    setTextValues((current) => ({ ...current, [key]: value }))
+  }
+
+  async function handleTemplateImageSelect(variable: PromptImageVariable, files: FileList | null) {
+    if (!files || files.length === 0) {
+      return
+    }
+
+    const maxCount = getImageVariableMaxCount(variable)
+    const nextImages = (await Promise.all(
+      [...files].slice(0, maxCount).map(createPromptImageInputValue),
+    )).filter((img): img is PromptImageInputValue => Boolean(img))
+
+    setImageValues((current) => ({
+      ...current,
+      [variable.key]: nextImages,
+    }))
+  }
+
+  function handleTemplateImageRemove(variableKey: string, imageId: string) {
+    setImageValues((current) => ({
+      ...current,
+      [variableKey]: (current[variableKey] ?? []).filter((img) => img.id !== imageId),
+    }))
   }
 
   async function selectReferences() {
@@ -408,10 +525,33 @@ export function ImageGenerationPage() {
             <p className="mt-2 text-base text-text-muted">描述画面、氛围和关键细节，Art Pilot 会把它整理成生成任务。</p>
           </header>
 
+          {template ? (
+            <div className="mb-4">
+              <PromptTemplateVariablePanel
+                imageValues={imageValues}
+                template={template}
+                textValues={textValues}
+                onExit={exitTemplate}
+                onImageRemove={handleTemplateImageRemove}
+                onImageSelect={handleTemplateImageSelect}
+                onTextChange={handleTemplateTextChange}
+              />
+            </div>
+          ) : null}
+
+          {templateLoading ? (
+            <div className="mb-4 rounded-lg bg-background-subtle p-3 text-base text-text-muted">加载模板中...</div>
+          ) : null}
+
+          {templateError ? (
+            <div className="mb-4 rounded-lg bg-background-subtle p-3 text-base text-text-error">{templateError}</div>
+          ) : null}
+
           <div className="relative pb-12">
             <div className="relative z-10">
               <GenerationForm
                 isGenerateDisabled={!prompt.trim() || startState.loading}
+                isReadOnly={!!template}
                 prompt={prompt}
                 references={references}
                 onGenerate={startGeneration}
@@ -457,6 +597,33 @@ export function ImageGenerationPage() {
       </div>
 
       <RecentTaskList tasks={recentTasks} onCancelTask={cancelGeneration} />
+
+      {exitConfirmOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 px-6 py-6">
+          <div className="w-full max-w-md rounded-lg border border-border bg-background-solid p-6 shadow-xl">
+            <h2 className="text-base font-semibold text-text-strong">退出模板模式</h2>
+            <p className="mt-2 text-base text-text-muted">
+              当前已填写的变量数据将会丢失，确定要退出吗？
+            </p>
+            <div className="mt-6 flex justify-end gap-2">
+              <button
+                className="inline-flex h-8 cursor-pointer items-center justify-center rounded-lg px-3 text-base font-semibold text-text-muted transition-colors hover:bg-fill-hover hover:text-text-strong"
+                type="button"
+                onClick={() => setExitConfirmOpen(false)}
+              >
+                取消
+              </button>
+              <button
+                className="inline-flex h-8 cursor-pointer items-center justify-center rounded-lg bg-text-strong px-3 text-base font-semibold text-background-solid transition-colors hover:bg-text-muted"
+                type="button"
+                onClick={handleConfirmExit}
+              >
+                确定退出
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }
@@ -611,4 +778,79 @@ function isImageGenerationAspectRatio(value: unknown): value is ImageGenerationA
     || value === '3:2'
     || value === '16:9'
     || value === '9:16'
+}
+
+function hasTemplateVariablesFilled(
+  template: PromptTemplate | null,
+  textValues: Record<string, string>,
+  imageValues: Record<string, PromptImageInputValue[]>,
+): boolean {
+  if (!template) {
+    return false
+  }
+
+  for (const variable of template.variables) {
+    if (variable.type === 'text') {
+      const value = textValues[variable.key]?.trim()
+
+      if (value && value !== (variable.defaultValue?.trim() ?? '')) {
+        return true
+      }
+    } else {
+      const images = imageValues[variable.key]
+
+      if (images && images.length > 0) {
+        return true
+      }
+    }
+  }
+
+  return false
+}
+
+function buildImageBindings(
+  template: PromptTemplate,
+  imageValues: Record<string, PromptImageInputValue[]>,
+  imageRefs: ImageReference[],
+): PromptImageBinding[] {
+  const bindings: PromptImageBinding[] = []
+  let currentIndex = 1
+
+  for (const variable of template.variables) {
+    if (variable.type !== 'image') {
+      continue
+    }
+
+    const images = imageValues[variable.key] ?? []
+
+    if (images.length === 0) {
+      continue
+    }
+
+    const imageIds = images.map((img) => img.id)
+    const refIds = imageRefs
+      .filter((ref) => imageIds.includes(ref.id))
+      .map((ref) => ref.id)
+
+    if (refIds.length !== imageIds.length) {
+      console.warn(
+        'buildImageBindings: some variable images were not found in references',
+        { variableKey: variable.key, expected: imageIds.length, found: refIds.length },
+      )
+    }
+
+    if (refIds.length > 0) {
+      bindings.push({
+        variableKey: variable.key,
+        variableLabel: variable.label,
+        role: variable.role,
+        imageReferenceIds: refIds,
+        startIndex: currentIndex,
+        count: refIds.length,
+      })
+      currentIndex += refIds.length
+    }
+  }
+
+  return bindings
 }

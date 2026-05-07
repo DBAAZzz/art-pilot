@@ -1,4 +1,5 @@
-import type { ImageGenerationAspectRatio, ImageGenerationSize, ImageReference } from './imageGeneration'
+import type { ImageGenerationAspectRatio, ImageGenerationSize, ImageReference, PromptImageBinding } from './imageGeneration'
+import type { PromptVariableValue } from './prompt'
 
 export type GenerationTaskStatus = 'running' | 'complete' | 'error' | 'cancelled'
 
@@ -30,4 +31,8 @@ export type ImageHistoryTask = {
   completedAt?: number
   references: ImageReference[]
   images: ImageHistoryImage[]
+  promptTemplateId?: string
+  promptTemplateTitle?: string
+  promptTemplateValues?: PromptVariableValue[]
+  promptTemplateImageBindings?: PromptImageBinding[]
 }

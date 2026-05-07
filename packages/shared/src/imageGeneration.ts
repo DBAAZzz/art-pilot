@@ -1,3 +1,5 @@
+import type { PromptImageVariable, PromptVariableValue } from './prompt'
+
 export const IMAGE_GENERATION_EVENT_TYPES = {
   started: 'started',
   codexThreadStarted: 'codex-thread-started',
@@ -25,6 +27,16 @@ export type ImageReference = {
   imageUrl?: string
 }
 
+export type PromptImageBinding = {
+  variableKey: string
+  variableLabel: string
+  role?: PromptImageVariable['role']
+  imageReferenceIds: string[]
+  // 1-based index for human/model-facing "第 N 张输入图" descriptions.
+  startIndex: number
+  count: number
+}
+
 export type ImageGenerationRequest = {
   prompt: string
   // count 只表达“期望生成几张图”，主进程不会把它拆成多个 Codex 进程。
@@ -35,6 +47,12 @@ export type ImageGenerationRequest = {
   size?: ImageGenerationSize
   // v1 只支持本地参考图路径，由主进程通过 codex --image <path> 传入。
   references?: ImageReference[]
+  promptTemplateUse?: {
+    templateId: string
+    templateTitle?: string
+    values: PromptVariableValue[]
+    imageBindings: PromptImageBinding[]
+  }
 }
 
 export type ImageGenerationStartResult = {

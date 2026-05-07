@@ -11,11 +11,12 @@ import {
 } from 'lucide-react'
 import type { AssetImage, AssetImageDetail } from '@art-pilot/shared'
 import type React from 'react'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router'
 
 import { Button } from '@/components/Button'
 import { ImagePreviewOverlay } from '@/components/ImagePreviewOverlay'
+import { useApiRequest } from '@/hooks/useApiRequest'
 import type { ImagePreviewItem } from '@/hooks/useImagePreview'
 import { useImagePreview } from '@/hooks/useImagePreview'
 import { cn } from '@/lib/utils'
@@ -25,9 +26,19 @@ const REFERENCE_PREVIEW_INDEX_OFFSET = 10_000
 export function AssetDetailPage() {
   const navigate = useNavigate()
   const { imageId } = useParams()
-  const [asset, setAsset] = useState<AssetImageDetail | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const getAssetDetail = useCallback((targetImageId: string) => window.api.getAssetDetail(targetImageId), [])
+  const {
+    data: asset,
+    error,
+    execute: fetchAssetDetail,
+    loading,
+    setData: setAsset,
+    setError,
+    setLoading,
+  } = useApiRequest(getAssetDetail, {
+    initialData: null as AssetImageDetail | null,
+    initialLoading: true,
+  })
 
   const currentSiblingIndex = useMemo(() => {
     if (!asset) {
@@ -79,37 +90,18 @@ export function AssetDetailPage() {
 
   useEffect(() => {
     if (!imageId) {
+      setAsset(null)
       setError('图片 ID 不存在')
       setLoading(false)
       return
     }
 
-    let isCurrent = true
-
-    setLoading(true)
-    setError(null)
-
-    void window.api.getAssetDetail(decodeURIComponent(imageId)).then((detail) => {
-      if (!isCurrent) {
-        return
-      }
-
-      setAsset(detail)
-      setError(detail ? null : '没有找到这张图片')
-    }).catch((detailError) => {
-      if (isCurrent) {
-        setError(detailError instanceof Error ? detailError.message : String(detailError))
-      }
-    }).finally(() => {
-      if (isCurrent) {
-        setLoading(false)
+    void fetchAssetDetail(decodeURIComponent(imageId)).then((detail) => {
+      if (detail === null) {
+        setError('没有找到这张图片')
       }
     })
-
-    return () => {
-      isCurrent = false
-    }
-  }, [imageId])
+  }, [fetchAssetDetail, imageId, setAsset, setError, setLoading])
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
@@ -433,7 +425,7 @@ function ReferenceStrip({
           {reference.imageUrl ? (
             <img alt={reference.name ?? `参考图 ${index + 1}`} className="size-full object-cover" src={reference.imageUrl} />
           ) : (
-            <span className="flex size-full items-center justify-center text-[11px] text-text-muted">无预览</span>
+            <span className="flex size-full items-center justify-center text-base text-text-muted">无预览</span>
           )}
         </button>
       ))}
@@ -510,7 +502,7 @@ function StatusRow({ status }: { status: AssetImage['status'] }) {
       label="状态"
       value={(
         <span className={cn(
-          'rounded-md px-1.5 py-0.5 text-[12px] font-semibold',
+          'rounded-md px-1.5 py-0.5 text-base font-semibold',
           isError ? 'bg-red-50 text-red-600' : 'bg-amber-50 text-amber-700',
         )}
         >

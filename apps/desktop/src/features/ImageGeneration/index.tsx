@@ -6,6 +6,8 @@ import { useLocation } from 'react-router'
 import { GenerationForm } from './GenerationForm'
 import { type AspectRatio, type ImageCount, GenerationOptions } from './GenerationOptions'
 import { RecentTaskList } from './RecentTaskList'
+import { getErrorMessage, useLoadingState } from '@/hooks/useLoadingState'
+import { usePointerDrag } from '@/hooks/usePointerDrag'
 
 export type TaskStatus = 'running' | 'complete' | 'error' | 'cancelled'
 
@@ -47,22 +49,25 @@ const PANEL_RESIZER_WIDTH = 12
 export function ImageGenerationPage() {
   const location = useLocation()
   const panelContainerRef = useRef<HTMLDivElement | null>(null)
-  const resizeStateRef = useRef<{
-    startX: number
-    startWidth: number
-  } | null>(null)
   const [prompt, setPrompt] = useState('')
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>('1:1')
   const [imageCount, setImageCount] = useState<ImageCount>(1)
   const [formPanelWidth, setFormPanelWidth] = useState(() => readStoredFormPanelWidth())
   const [activeJobIds, setActiveJobIds] = useState<Set<string>>(() => new Set())
   const [recentTasks, setRecentTasks] = useState<RecentTask[]>([])
-  const [startError, setStartError] = useState<string | null>(null)
+  const startState = useLoadingState()
   const [referenceNotice, setReferenceNotice] = useState<string | null>(null)
   const [references, setReferences] = useState<ImageReference[]>([])
-  const [submitting, setSubmitting] = useState(false)
   const referencesRef = useRef<ImageReference[]>([])
   const pendingHistoryReloadJobIdsRef = useRef(new Set<string>())
+  const handlePanelResizeDrag = useCallback((event: PointerEvent, resizeState: { startX: number, startWidth: number }) => {
+    setFormPanelWidth(clampFormPanelWidth(resizeState.startWidth + event.clientX - resizeState.startX, panelContainerRef.current))
+  }, [])
+  const panelResizeDrag = usePointerDrag({
+    cursor: 'col-resize',
+    onDrag: handlePanelResizeDrag,
+    userSelect: 'none',
+  })
 
   const loadRecentTasks = useCallback(async (mode: 'replace' | 'merge' = 'replace') => {
     try {
@@ -119,36 +124,6 @@ export function ImageGenerationPage() {
   }, [formPanelWidth])
 
   useEffect(() => {
-    const handlePointerMove = (event: PointerEvent) => {
-      const resizeState = resizeStateRef.current
-
-      if (!resizeState) {
-        return
-      }
-
-      setFormPanelWidth(clampFormPanelWidth(resizeState.startWidth + event.clientX - resizeState.startX, panelContainerRef.current))
-    }
-
-    const handlePointerUp = () => {
-      resizeStateRef.current = null
-      document.body.style.cursor = ''
-      document.body.style.userSelect = ''
-    }
-
-    window.addEventListener('pointermove', handlePointerMove)
-    window.addEventListener('pointerup', handlePointerUp)
-    window.addEventListener('pointercancel', handlePointerUp)
-
-    return () => {
-      window.removeEventListener('pointermove', handlePointerMove)
-      window.removeEventListener('pointerup', handlePointerUp)
-      window.removeEventListener('pointercancel', handlePointerUp)
-      document.body.style.cursor = ''
-      document.body.style.userSelect = ''
-    }
-  }, [])
-
-  useEffect(() => {
     void loadRecentTasks('replace')
   }, [loadRecentTasks])
 
@@ -162,17 +137,29 @@ export function ImageGenerationPage() {
         prompt?: string
         reference?: ImageReference
       }
+      promptTemplateUse?: {
+        prompt: string
+        references?: ImageReference[]
+      }
     } | null
 
-    if (!state?.assetReuse) {
+    if (!state?.assetReuse && !state?.promptTemplateUse) {
       return
     }
 
-    if (state.assetReuse.prompt) {
+    if (state.promptTemplateUse) {
+      setPrompt(state.promptTemplateUse.prompt)
+
+      if (state.promptTemplateUse.references?.length) {
+        addReferences(state.promptTemplateUse.references)
+      }
+    }
+
+    if (state.assetReuse?.prompt) {
       setPrompt(state.assetReuse.prompt)
     }
 
-    if (state.assetReuse.reference) {
+    if (state.assetReuse?.reference) {
       addReferences([state.assetReuse.reference])
     }
   }, [location.state])
@@ -180,12 +167,11 @@ export function ImageGenerationPage() {
   async function startGeneration() {
     const trimmedPrompt = prompt.trim()
 
-    if (!trimmedPrompt || submitting) {
+    if (!trimmedPrompt || startState.loading) {
       return
     }
 
-    setSubmitting(true)
-    setStartError(null)
+    startState.startLoading()
 
     try {
       await window.api.startImageGeneration({
@@ -201,9 +187,10 @@ export function ImageGenerationPage() {
       setReferences([])
       setReferenceNotice(null)
     } catch (error) {
-      setStartError(error instanceof Error ? error.message : String(error))
+      startState.failLoading(error)
+      return
     } finally {
-      setSubmitting(false)
+      startState.stopLoading()
     }
   }
 
@@ -213,7 +200,7 @@ export function ImageGenerationPage() {
 
   async function selectReferences() {
     setReferenceNotice(null)
-    setStartError(null)
+    startState.setError(null)
 
     try {
       const selectedReferences = await window.api.selectImageReferences()
@@ -224,13 +211,13 @@ export function ImageGenerationPage() {
 
       addReferences(selectedReferences)
     } catch (error) {
-      setStartError(error instanceof Error ? error.message : String(error))
+      startState.setError(getErrorMessage(error))
     }
   }
 
   async function pasteReferences() {
     setReferenceNotice(null)
-    setStartError(null)
+    startState.setError(null)
 
     try {
       const pastedReferences = await window.api.pasteImageReferencesFromClipboard()
@@ -242,7 +229,7 @@ export function ImageGenerationPage() {
       addReferences(pastedReferences)
       return true
     } catch (error) {
-      setStartError(error instanceof Error ? error.message : String(error))
+      startState.setError(getErrorMessage(error))
       return true
     }
   }
@@ -273,13 +260,13 @@ export function ImageGenerationPage() {
   }
 
   function startPanelResize(event: React.PointerEvent<HTMLDivElement>) {
-    event.preventDefault()
-    resizeStateRef.current = {
-      startX: event.clientX,
-      startWidth: formPanelWidth,
-    }
-    document.body.style.cursor = 'col-resize'
-    document.body.style.userSelect = 'none'
+    panelResizeDrag.startDrag({
+      event,
+      state: {
+        startX: event.clientX,
+        startWidth: formPanelWidth,
+      },
+    })
   }
 
   function resetFormPanelWidth() {
@@ -424,7 +411,7 @@ export function ImageGenerationPage() {
           <div className="relative pb-12">
             <div className="relative z-10">
               <GenerationForm
-                isGenerateDisabled={!prompt.trim() || submitting}
+                isGenerateDisabled={!prompt.trim() || startState.loading}
                 prompt={prompt}
                 references={references}
                 onGenerate={startGeneration}
@@ -448,7 +435,7 @@ export function ImageGenerationPage() {
 
           {activeJobIds.size > 0 ? <p className="mt-3 text-base text-text-muted">正在运行 {activeJobIds.size} 个任务</p> : null}
           {referenceNotice ? <p className="mt-3 text-base text-text-muted">{referenceNotice}</p> : null}
-          {startError ? <p className="mt-3 text-base text-text-muted">{startError}</p> : null}
+          {startState.error ? <p className="mt-3 text-base text-text-muted">{startState.error}</p> : null}
         </div>
       </section>
 

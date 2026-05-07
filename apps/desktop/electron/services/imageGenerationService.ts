@@ -178,12 +178,13 @@ export class ImageGenerationService {
           },
           onTimeout: (kind, stderrTail) => {
             logger.error(
-              'codex streaming process timed out: jobId=%s kind=%s stderrTailBytes=%d',
+              'codex streaming process timed out: jobId=%s kind=%s stderrTailBytes=%d stderrTail=%s',
               jobId,
               kind,
               Buffer.byteLength(stderrTail, 'utf8'),
+              stderrTail,
             )
-            this.handleCodexError(jobId, stderrTail || 'Image generation timed out', 'timeout')
+            this.handleCodexError(jobId, getCodexTimeoutMessage(kind), 'timeout')
           },
         },
       )
@@ -280,7 +281,7 @@ export class ImageGenerationService {
 
     if (code !== 0) {
       logger.error('%s codex process exited with failure: code=%s stderrTail=%s', this.formatJobLogContext(activeJob), String(code), stderrTail)
-      this.handleCodexError(jobId, stderrTail || `codex exec exited with code ${code}`, 'process-crashed')
+            this.handleCodexError(jobId, normalizeCodexProcessError(stderrTail) || `codex exec exited with code ${code}`, 'process-crashed')
       return
     }
 
@@ -641,6 +642,28 @@ function normalizeImageCount(count: number | undefined) {
   }
 
   return Math.min(Math.max(Math.trunc(count), 1), MAX_IMAGE_COUNT)
+}
+
+function getCodexTimeoutMessage(kind: 'startup' | 'inactivity' | 'absolute') {
+  if (kind === 'startup') {
+    return 'Codex 启动超时，请稍后重试'
+  }
+
+  if (kind === 'inactivity') {
+    return '图片生成长时间没有进展，任务已超时'
+  }
+
+  return '图片生成超时，请减少生成数量或稍后重试'
+}
+
+function normalizeCodexProcessError(stderrTail: string) {
+  return stderrTail
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .filter((line) => line !== 'Debugger attached.')
+    .filter((line) => line !== 'Reading prompt from stdin...')
+    .join('\n')
 }
 
 function attachReferenceImageUrls(jobId: string, references: ImageReference[]) {

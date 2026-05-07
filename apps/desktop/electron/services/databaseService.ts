@@ -47,6 +47,13 @@ export class DatabaseService {
     this.ensureColumn(database, 'generation_tasks', 'aspect_ratio', 'TEXT')
     this.ensureColumn(database, 'generation_tasks', 'generation_params', 'TEXT')
     this.ensureColumn(database, 'generated_images', 'favorite', 'INTEGER NOT NULL DEFAULT 0')
+    this.ensureColumn(database, 'prompts', 'variables_json', 'TEXT NOT NULL DEFAULT \'[]\'')
+    database.exec('DROP INDEX IF EXISTS idx_prompts_source_url')
+    database.exec(`
+      CREATE INDEX IF NOT EXISTS idx_prompts_source_url
+        ON prompts(source_url)
+        WHERE source_url IS NOT NULL
+    `)
     logger.info('database schema ensured')
   }
 

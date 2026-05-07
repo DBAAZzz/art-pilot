@@ -34,6 +34,10 @@ export const IPC_CHANNELS = {
     openExternalUrl: 'system:open-external-url',
   },
   prompt: {
+    fillFromUrl: 'prompt:fill-from-url',
+    saveTemplate: 'prompt:save-template',
+    listTemplates: 'prompt:list-templates',
+    resolveTemplate: 'prompt:resolve-template',
     previewImport: 'prompt:preview-import',
     save: 'prompt:save',
     list: 'prompt:list',

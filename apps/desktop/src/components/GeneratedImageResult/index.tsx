@@ -205,7 +205,7 @@ function ReferenceImageStrip({
                 <ImagePlus className="size-5" strokeWidth={1.8} />
               </div>
             )}
-            <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-text-strong/55 px-1 py-0.5 text-center text-[10px] leading-tight text-background-solid opacity-0 transition-opacity group-hover:opacity-100">
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-text-strong/55 px-1 py-0.5 text-center text-base leading-tight text-background-solid opacity-0 transition-opacity group-hover:opacity-100">
               {index + 1}
             </div>
           </button>

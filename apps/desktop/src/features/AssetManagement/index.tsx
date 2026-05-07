@@ -236,8 +236,8 @@ const AssetAlbumTile = memo(function AssetAlbumTile({
       <div className="pointer-events-none absolute inset-0 rounded-lg ring-1 ring-black/5 transition-colors duration-100 group-hover:ring-black/10" />
       <div className="pointer-events-none absolute inset-x-0 bottom-0 flex translate-y-1 items-end justify-between gap-2 bg-gradient-to-t from-black/45 via-black/10 to-transparent p-2 opacity-0 transition-[opacity,transform] duration-100 ease-out group-hover:translate-y-0 group-hover:opacity-100">
         <div className="min-w-0 text-white">
-          <p className="truncate text-[12px] font-medium leading-4">{asset.fileName}</p>
-          <p className="text-[11px] leading-4 text-white/75">{formatDate(asset.createdAt)} · {asset.aspectRatio ?? formatDimensions(asset)}</p>
+          <p className="truncate text-base font-medium leading-4">{asset.fileName}</p>
+          <p className="text-base leading-4 text-white/75">{formatDate(asset.createdAt)} · {asset.aspectRatio ?? formatDimensions(asset)}</p>
         </div>
         <button
           aria-label="继续创作"

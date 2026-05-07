@@ -53,6 +53,7 @@ CREATE TABLE IF NOT EXISTS prompts (
   original_source_url TEXT,
   original_language TEXT,
   categories_json TEXT NOT NULL DEFAULT '[]',
+  variables_json TEXT NOT NULL DEFAULT '[]',
   preview_images_json TEXT NOT NULL DEFAULT '[]',
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL
@@ -61,6 +62,6 @@ CREATE TABLE IF NOT EXISTS prompts (
 CREATE INDEX IF NOT EXISTS idx_prompts_updated_at
   ON prompts(updated_at DESC);
 
-CREATE UNIQUE INDEX IF NOT EXISTS idx_prompts_source_url
+CREATE INDEX IF NOT EXISTS idx_prompts_source_url
   ON prompts(source_url)
   WHERE source_url IS NOT NULL;

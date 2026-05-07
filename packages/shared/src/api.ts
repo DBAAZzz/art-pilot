@@ -7,7 +7,15 @@ import type {
   ImageGenerationStartResult,
   ImageReference,
 } from './imageGeneration'
-import type { PromptImportDraft, PromptRecord, SavePromptRequest } from './prompt'
+import type {
+  PromptImportDraft,
+  PromptRecord,
+  PromptTemplate,
+  PromptTemplateDraft,
+  ResolvedPromptTemplate,
+  ResolvePromptTemplateRequest,
+  SavePromptRequest,
+} from './prompt'
 import type { AppSettings, UpdateAppSettingsRequest } from './settings'
 
 export interface VersionsApi {
@@ -38,6 +46,10 @@ export interface ElectronApi {
   openImageLibraryFolder: () => Promise<void>
   openImageFileLocation: (imagePath: string) => Promise<void>
   openExternalUrl: (url: string) => Promise<void>
+  fillPromptTemplateFromUrl: (url: string) => Promise<PromptTemplateDraft>
+  savePromptTemplate: (draft: PromptTemplateDraft) => Promise<PromptTemplate>
+  listPromptTemplates: () => Promise<PromptTemplate[]>
+  resolvePromptTemplate: (request: ResolvePromptTemplateRequest) => Promise<ResolvedPromptTemplate>
   previewPromptImport: (url: string) => Promise<PromptImportDraft>
   savePrompt: (request: SavePromptRequest) => Promise<PromptRecord>
   listPrompts: () => Promise<PromptRecord[]>

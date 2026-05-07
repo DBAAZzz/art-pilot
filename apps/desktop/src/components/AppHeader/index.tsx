@@ -1,8 +1,23 @@
+import { ArrowLeft } from 'lucide-react'
 import type { MouseEvent } from 'react'
-import { useMatches } from 'react-router'
+import type { ReactNode } from 'react'
+import { useMatches, useNavigate } from 'react-router'
 
-export function AppHeader() {
+type AppHeaderProps = {
+  left?: ReactNode
+  right?: ReactNode
+  showBackButton?: boolean
+  onBack?: () => void
+}
+
+export function AppHeader({
+  left,
+  right,
+  showBackButton = false,
+  onBack,
+}: AppHeaderProps) {
   const matches = useMatches()
+  const navigate = useNavigate()
   const activeHandle = [...matches].reverse().map((match) => match.handle).find((handle) => getRouteTitle(handle) || shouldHideRouteTitle(handle))
   const title = getRouteTitle(activeHandle) ?? 'Art Pilot'
   const shouldHideTitle = shouldHideRouteTitle(activeHandle)
@@ -17,14 +32,41 @@ export function AppHeader() {
     void window.api.toggleWindowMaximize()
   }
 
+  const handleBack = () => {
+    if (onBack) {
+      onBack()
+      return
+    }
+
+    void navigate(-1)
+  }
+
   return (
     <header
       className="window-drag-region absolute inset-x-0 top-0 z-30 flex h-14 items-center justify-between border-b border-border bg-background-solid px-6 shadow-app-header-bottom"
       onDoubleClick={handleDoubleClick}
     >
-      <div className="flex items-center gap-2.5 text-[15px] font-semibold text-text-strong">
+      <div className="flex min-w-0 items-center gap-2.5 text-base font-semibold text-text-strong">
+        {left ? (
+          <div className="window-no-drag" data-window-drag-ignore>{left}</div>
+        ) : showBackButton ? (
+          <button
+            aria-label="返回上一层"
+            className="window-no-drag inline-flex size-8 cursor-pointer items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-fill-hover hover:text-text-strong"
+            data-window-drag-ignore
+            type="button"
+            onClick={handleBack}
+          >
+            <ArrowLeft className="size-4" strokeWidth={1.9} />
+          </button>
+        ) : null}
         {shouldHideTitle ? null : <span>{title}</span>}
       </div>
+      {right ? (
+        <div className="window-no-drag flex shrink-0 items-center gap-2" data-window-drag-ignore>
+          {right}
+        </div>
+      ) : null}
     </header>
   )
 }

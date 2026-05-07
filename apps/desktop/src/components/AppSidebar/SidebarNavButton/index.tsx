@@ -14,7 +14,7 @@ export function SidebarNavButton({ item }: { item: SidebarNavItem }) {
   const Icon = item.icon
   const className = ({ isActive }: { isActive?: boolean } = {}) =>
     cn(
-      'group flex h-[36px] items-center gap-2 rounded-lg px-2.5 text-left text-[12px] font-medium leading-none transition-colors',
+      'group flex h-[36px] items-center gap-2 rounded-lg px-2.5 text-left text-base font-medium leading-none transition-colors',
       item.active || isActive
         ? 'bg-fill-hover text-text-strong'
         : 'text-text-muted hover:bg-fill-hover hover:text-text-strong',

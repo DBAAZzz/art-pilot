@@ -25,7 +25,7 @@ export class CodexImageProvider {
     )
 
     const executablePath = await findCodexExecutable()
-    const imageTimeoutMs = 300000 // 单张图片限制生图时间最长为 5 minutes
+    const imageTimeoutMs = 600000 // 单张图片限制生图时间最长为 10 minutes
 
     if (!executablePath) {
       logger.error('cannot start streaming image generation: codex executable not found')

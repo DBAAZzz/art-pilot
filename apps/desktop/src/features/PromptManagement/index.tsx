@@ -16,14 +16,18 @@ import {
   X,
 } from 'lucide-react'
 import type React from 'react'
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { LucideIcon } from 'lucide-react'
-import type { PromptImportDraft, PromptRecord, SavePromptRequest } from '@art-pilot/shared'
+import { MAX_IMAGE_REFERENCES, getImageVariableMaxCount, resolvePromptTemplateContent } from '@art-pilot/shared'
+import type { ImageReference, PromptRecord, PromptVariable, PromptVariableValue } from '@art-pilot/shared'
+import { useNavigate } from 'react-router'
 
 import { Button } from '@/components/Button'
 import { ImagePreviewOverlay } from '@/components/ImagePreviewOverlay'
 import { Input } from '@/components/Input'
+import { useApiRequest } from '@/hooks/useApiRequest'
 import { useImagePreview } from '@/hooks/useImagePreview'
+import { getErrorMessage, useLoadingState } from '@/hooks/useLoadingState'
 import { cn } from '@/lib/utils'
 
 type PromptViewMode = 'list' | 'gallery'
@@ -42,6 +46,13 @@ type PromptPreviewListItem = {
   promptTitle: string
 }
 
+type PromptImageInputValue = {
+  id: string
+  name: string
+  path: string
+  imageUrl: string
+}
+
 const defaultGalleryFilters: GalleryFilters = {
   category: null,
   sourceSite: 'all',
@@ -50,17 +61,25 @@ const defaultGalleryFilters: GalleryFilters = {
 }
 
 export function PromptManagementPage() {
-  const [prompts, setPrompts] = useState<PromptRecord[]>([])
+  const navigate = useNavigate()
   const [selectedPromptId, setSelectedPromptId] = useState<string | null>(null)
   const [selectedImageIndex, setSelectedImageIndex] = useState(0)
   const [query, setQuery] = useState('')
   const [viewMode, setViewMode] = useState<PromptViewMode>('list')
   const [galleryFilters, setGalleryFilters] = useState<GalleryFilters>(defaultGalleryFilters)
   const [copiedPromptId, setCopiedPromptId] = useState<string | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [isCreatePromptOpen, setIsCreatePromptOpen] = useState(false)
-  const [creatingPrompt, setCreatingPrompt] = useState(false)
+  const [promptToUse, setPromptToUse] = useState<PromptRecord | null>(null)
+  const listPromptTemplates = useCallback(() => window.api.listPromptTemplates(), [])
+  const {
+    data: prompts,
+    error,
+    execute: fetchPrompts,
+    loading,
+    setError,
+  } = useApiRequest(listPromptTemplates, {
+    initialData: [] as PromptRecord[],
+    initialLoading: true,
+  })
 
   const filteredPrompts = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase()
@@ -132,17 +151,9 @@ export function PromptManagementPage() {
   }, [selectedPrompt?.id])
 
   async function loadPrompts() {
-    setLoading(true)
-    setError(null)
-
-    try {
-      const promptRecords = await window.api.listPrompts()
-      setPrompts(promptRecords)
+    const promptRecords = await fetchPrompts()
+    if (promptRecords) {
       setSelectedPromptId((currentId) => currentId ?? promptRecords[0]?.id ?? null)
-    } catch (loadError) {
-      setError(getErrorMessage(loadError))
-    } finally {
-      setLoading(false)
     }
   }
 
@@ -173,25 +184,15 @@ export function PromptManagementPage() {
     setViewMode('list')
   }
 
-  async function createPrompt(request: SavePromptRequest) {
-    setCreatingPrompt(true)
-    setError(null)
-
-    try {
-      const savedPrompt = await window.api.savePrompt(request)
-      setPrompts((currentPrompts) => [
-        savedPrompt,
-        ...currentPrompts.filter((prompt) => prompt.id !== savedPrompt.id),
-      ])
-      setSelectedPromptId(savedPrompt.id)
-      setSelectedImageIndex(0)
-      setViewMode('list')
-      setIsCreatePromptOpen(false)
-    } catch (createError) {
-      setError(getErrorMessage(createError))
-    } finally {
-      setCreatingPrompt(false)
-    }
+  async function useResolvedPrompt(prompt: string, references: ImageReference[]) {
+    await navigate('/', {
+      state: {
+        promptTemplateUse: {
+          prompt,
+          references,
+        },
+      },
+    })
   }
 
   return (
@@ -202,7 +203,7 @@ export function PromptManagementPage() {
         query={query}
         viewMode={viewMode}
         onClearFilters={() => setGalleryFilters(defaultGalleryFilters)}
-        onCreatePrompt={() => setIsCreatePromptOpen(true)}
+        onCreatePrompt={() => void navigate('/prompts/new')}
         onQueryChange={setQuery}
         onViewModeChange={setViewMode}
       />
@@ -225,10 +226,11 @@ export function PromptManagementPage() {
           selectedImageIndex={selectedImageIndex}
           selectedPreviewImage={selectedPreviewImage}
           onCopy={(prompt) => void copyPrompt(prompt)}
-          onCreatePrompt={() => setIsCreatePromptOpen(true)}
+          onCreatePrompt={() => void navigate('/prompts/new')}
           onOpenOriginalSource={() => selectedPrompt ? void openOriginalSource(selectedPrompt) : undefined}
           onSelectImage={setSelectedImageIndex}
           onSelectPrompt={setSelectedPromptId}
+          onUsePrompt={setPromptToUse}
         />
       ) : (
         <PromptGalleryView
@@ -239,17 +241,21 @@ export function PromptManagementPage() {
           prompts={filteredPrompts}
           promptsCount={prompts.length}
           onCopy={(prompt) => void copyPrompt(prompt)}
-          onCreatePrompt={() => setIsCreatePromptOpen(true)}
+          onCreatePrompt={() => void navigate('/prompts/new')}
           onFiltersChange={setGalleryFilters}
           onShowPromptInList={showPromptInList}
+          onUsePrompt={setPromptToUse}
         />
       )}
 
-      {isCreatePromptOpen ? (
-        <CreatePromptDialog
-          saving={creatingPrompt}
-          onClose={() => setIsCreatePromptOpen(false)}
-          onSave={(request) => void createPrompt(request)}
+      {promptToUse ? (
+        <UsePromptTemplateDialog
+          prompt={promptToUse}
+          onClose={() => setPromptToUse(null)}
+          onUse={(resolvedPrompt, references) => {
+            setPromptToUse(null)
+            void useResolvedPrompt(resolvedPrompt, references)
+          }}
         />
       ) : null}
 
@@ -377,6 +383,7 @@ function PromptListView({
   onOpenOriginalSource,
   onSelectImage,
   onSelectPrompt,
+  onUsePrompt,
 }: {
   copiedPromptId: string | null
   filteredPrompts: PromptRecord[]
@@ -392,6 +399,7 @@ function PromptListView({
   onOpenOriginalSource: () => void
   onSelectImage: (index: number) => void
   onSelectPrompt: (promptId: string) => void
+  onUsePrompt: (prompt: PromptRecord) => void
 }) {
   return (
     <div className="grid min-h-0 flex-1 grid-cols-[360px_minmax(0,1fr)] gap-4">
@@ -429,7 +437,7 @@ function PromptListView({
               }}
               icon={MessageSquareText}
               title={promptsCount > 0 ? '没有匹配结果' : '暂无提示词'}
-              description={promptsCount > 0 ? '调整关键词或筛选条件试试' : '你可以手动创建常用的提示词，或从外部导入。'}
+              description={promptsCount > 0 ? '调整关键词或筛选条件试试' : '你可以手动创建模板，也可以用链接快速填充。'}
             />
           )}
         </div>
@@ -445,9 +453,10 @@ function PromptListView({
             onCopy={() => onCopy(selectedPrompt)}
             onOpenOriginalSource={onOpenOriginalSource}
             onSelectImage={onSelectImage}
+            onUse={() => onUsePrompt(selectedPrompt)}
           />
         ) : (
-          <EmptyState icon={MessageSquareText} title="选择一个提示词" description="已导入提示词会在这里显示预览图和内容" />
+          <EmptyState icon={MessageSquareText} title="选择一个提示词" description="已保存模板会在这里显示预览图和内容" />
         )}
       </div>
     </div>
@@ -462,6 +471,7 @@ function PromptDetail({
   onCopy,
   onOpenOriginalSource,
   onSelectImage,
+  onUse,
 }: {
   copied: boolean
   prompt: PromptRecord
@@ -470,6 +480,7 @@ function PromptDetail({
   onCopy: () => void
   onOpenOriginalSource: () => void
   onSelectImage: (index: number) => void
+  onUse: () => void
 }) {
   const detailPreviewImages = useMemo(() => {
     return prompt.previewImages.map((image, index) => ({
@@ -525,7 +536,7 @@ function PromptDetail({
             )}
           </div>
 
-          <h1 className="text-[22px] font-semibold leading-7 text-text-strong">{prompt.title}</h1>
+          <h1 className="text-title font-semibold leading-7 text-text-strong">{prompt.title}</h1>
 
           {prompt.description ? (
             <p className="mt-3 text-base leading-6 text-text-muted">{prompt.description}</p>
@@ -565,6 +576,10 @@ function PromptDetail({
           ) : null}
 
           <div className="mt-5 flex flex-wrap gap-2">
+            <Button className="gap-1.5 bg-text-strong text-background-solid hover:bg-text-muted" onClick={onUse}>
+              <Plus className="size-3.5" strokeWidth={1.8} />
+              使用模板
+            </Button>
             <Button className="gap-1.5" onClick={onCopy}>
               {copied ? <Check className="size-3.5" strokeWidth={1.8} /> : <Copy className="size-3.5" strokeWidth={1.8} />}
               {copied ? '已复制' : '复制提示词'}
@@ -680,7 +695,7 @@ function PromptListItem({
           <p className="mt-1 line-clamp-2 text-base text-text-muted">{prompt.description || prompt.content}</p>
           <div className="mt-2 flex min-w-0 flex-wrap items-center gap-1.5">
             {prompt.categories.slice(0, 3).map((category) => (
-              <span className="rounded-md bg-fill-hover px-1.5 py-0.5 text-[11px] leading-4 text-text-muted" key={category}>
+              <span className="rounded-md bg-fill-hover px-1.5 py-0.5 text-base leading-4 text-text-muted" key={category}>
                 {category}
               </span>
             ))}
@@ -706,6 +721,7 @@ function PromptGalleryView({
   onCreatePrompt,
   onFiltersChange,
   onShowPromptInList,
+  onUsePrompt,
 }: {
   copiedPromptId: string | null
   filterOptions: GalleryFilterOptions
@@ -717,6 +733,7 @@ function PromptGalleryView({
   onCreatePrompt: () => void
   onFiltersChange: (filters: GalleryFilters) => void
   onShowPromptInList: (prompt: PromptRecord) => void
+  onUsePrompt: (prompt: PromptRecord) => void
 }) {
   const [filtersCollapsed, setFiltersCollapsed] = useState(false)
   const galleryPreviewImages = useMemo<PromptPreviewListItem[]>(() => {
@@ -762,6 +779,7 @@ function PromptGalleryView({
                 onCopy={() => onCopy(prompt)}
                 onPreviewImage={galleryImagePreview.openPreview}
                 onShowPrompt={() => onShowPromptInList(prompt)}
+                onUsePrompt={() => onUsePrompt(prompt)}
               />
             ))}
           </div>
@@ -773,7 +791,7 @@ function PromptGalleryView({
             }}
             icon={Images}
             title={promptsCount > 0 ? '没有匹配结果' : '暂无提示词'}
-            description={promptsCount > 0 ? '调整关键词或筛选条件试试' : '你可以手动创建常用的提示词，或从外部导入。'}
+            description={promptsCount > 0 ? '调整关键词或筛选条件试试' : '你可以手动创建模板，也可以用链接快速填充。'}
           />
         )}
       </div>
@@ -821,7 +839,7 @@ function PromptGalleryFilters({
           <SlidersHorizontal className="size-3.5 shrink-0 text-text-muted" strokeWidth={1.8} />
           <span className="text-base font-semibold text-text-strong">筛选</span>
           {activeFilterCount > 0 ? (
-            <span className="rounded-md bg-fill-hover px-1.5 py-0.5 text-[11px] font-medium leading-4 text-text-muted">
+            <span className="rounded-md bg-fill-hover px-1.5 py-0.5 text-base font-medium leading-4 text-text-muted">
               {activeFilterCount} 项
             </span>
           ) : null}
@@ -948,6 +966,7 @@ function PromptGalleryCard({
   onCopy,
   onPreviewImage,
   onShowPrompt,
+  onUsePrompt,
 }: {
   copied: boolean
   prompt: PromptRecord
@@ -956,6 +975,7 @@ function PromptGalleryCard({
   onCopy: () => void
   onPreviewImage: (image: PromptPreviewListItem) => void
   onShowPrompt: () => void
+  onUsePrompt: () => void
 }) {
   const previewImage = prompt.previewImages[0]
 
@@ -996,13 +1016,18 @@ function PromptGalleryCard({
 
         <div className="mt-3 flex flex-wrap gap-1.5">
           {(prompt.categories.length > 0 ? prompt.categories.slice(0, 3) : ['未分类']).map((category) => (
-            <span className="rounded-md bg-fill-hover px-1.5 py-0.5 text-[11px] leading-4 text-text-muted" key={category}>
+            <span className="rounded-md bg-fill-hover px-1.5 py-0.5 text-base leading-4 text-text-muted" key={category}>
               {category}
             </span>
           ))}
         </div>
 
-        <Button className="mt-3 gap-1.5" display="block" onClick={onCopy}>
+        <Button className="mt-3 gap-1.5 bg-text-strong text-background-solid hover:bg-text-muted" display="block" onClick={onUsePrompt}>
+          <Plus className="size-3.5" strokeWidth={1.8} />
+          使用模板
+        </Button>
+
+        <Button className="mt-2 gap-1.5" display="block" onClick={onCopy}>
           {copied ? <Check className="size-3.5" strokeWidth={1.8} /> : <Copy className="size-3.5" strokeWidth={1.8} />}
           {copied ? '已复制' : '复制 Prompt'}
         </Button>
@@ -1011,81 +1036,82 @@ function PromptGalleryCard({
   )
 }
 
-function CreatePromptDialog({
-  saving,
+function UsePromptTemplateDialog({
+  prompt,
   onClose,
-  onSave,
+  onUse,
 }: {
-  saving: boolean
+  prompt: PromptRecord
   onClose: () => void
-  onSave: (request: SavePromptRequest) => void
+  onUse: (prompt: string, references: ImageReference[]) => void
 }) {
-  const [mode, setMode] = useState<'manual' | 'url'>('manual')
-  const [importUrl, setImportUrl] = useState('')
-  const [importDraft, setImportDraft] = useState<PromptImportDraft | null>(null)
-  const [importing, setImporting] = useState(false)
-  const [importError, setImportError] = useState<string | null>(null)
-  const [title, setTitle] = useState('')
-  const [description, setDescription] = useState('')
-  const [content, setContent] = useState('')
-  const [categories, setCategories] = useState('')
-  const [previewImages, setPreviewImages] = useState<PromptImportDraft['previewImages']>([])
-  const canSave = title.trim().length > 0 && content.trim().length > 0 && !saving
+  const [textValues, setTextValues] = useState<Record<string, string>>(() => {
+    return Object.fromEntries(prompt.variables
+      .filter((variable) => variable.type === 'text')
+      .map((variable) => [variable.key, variable.type === 'text' ? variable.defaultValue ?? '' : '']))
+  })
+  const [imageValues, setImageValues] = useState<Record<string, PromptImageInputValue[]>>({})
+  const resolveState = useLoadingState()
+  const values = useMemo(() => buildPromptVariableValues(prompt.variables, textValues, imageValues), [imageValues, prompt.variables, textValues])
+  const preview = useMemo(() => resolvePromptTemplateContent(prompt.content, prompt.variables, values), [prompt.content, prompt.variables, values])
+  const allReferences = useMemo(() => Object.values(imageValues).flat(), [imageValues])
+  const canUse = preview.errors.length === 0 && preview.generationPrompt.trim().length > 0 && allReferences.length <= MAX_IMAGE_REFERENCES && !resolveState.loading
 
-  async function previewImport() {
-    setImporting(true)
-    setImportError(null)
-
-    try {
-      const draft = await window.api.previewPromptImport(importUrl)
-      setImportDraft(draft)
-      setTitle(draft.title)
-      setDescription(draft.description ?? '')
-      setContent(draft.content)
-      setCategories(draft.categories.join(', '))
-      setPreviewImages(draft.previewImages)
-    } catch (error) {
-      setImportError(getErrorMessage(error))
-    } finally {
-      setImporting(false)
-    }
-  }
-
-  function submitForm(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-
-    if (!canSave) {
+  async function selectImages(variable: Extract<PromptVariable, { type: 'image' }>, files: FileList | null) {
+    if (!files || files.length === 0) {
       return
     }
 
-    const sourceDraft = mode === 'url' ? importDraft : null
+    resolveState.setError(null)
 
-    onSave({
-      title,
-      description,
-      content,
-      sourceSite: sourceDraft?.sourceSite ?? 'manual',
-      sourceUrl: sourceDraft?.sourceUrl,
-      sourceAuthor: sourceDraft?.sourceAuthor,
-      originalSourceUrl: sourceDraft?.originalSourceUrl,
-      originalLanguage: sourceDraft?.originalLanguage,
-      categories: parseCategoryInput(categories),
-      previewImages: mode === 'url' ? previewImages : [],
-    })
+    try {
+      const maxCount = getImageVariableMaxCount(variable)
+      const nextImages = (await Promise.all([...files].slice(0, maxCount).map(createPromptImageInputValue))).filter((image): image is PromptImageInputValue => Boolean(image))
+      setImageValues((currentValues) => ({
+        ...currentValues,
+        [variable.key]: nextImages,
+      }))
+    } catch (selectError) {
+      resolveState.setError(getErrorMessage(selectError))
+    }
+  }
+
+  async function submitUse(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+
+    if (!canUse) {
+      return
+    }
+
+    resolveState.startLoading()
+
+    try {
+      const resolved = await window.api.resolvePromptTemplate({
+        templateId: prompt.id,
+        values,
+      })
+      const references = mapPromptImagesToReferences(resolved.imageInputs, imageValues)
+      onUse(resolved.prompt, references)
+    } catch (resolveError) {
+      resolveState.failLoading(resolveError)
+      return
+    } finally {
+      resolveState.stopLoading()
+    }
   }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 px-6 py-6">
-      <form className="flex max-h-full w-full max-w-2xl flex-col rounded-lg border border-border bg-background-solid shadow-xl" onSubmit={submitForm}>
+      <form className="flex max-h-full w-full max-w-3xl flex-col rounded-lg border border-border bg-background-solid shadow-xl" onSubmit={submitUse}>
         <header className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-5 py-4">
-          <div>
-            <h2 className="text-base font-semibold text-text-strong">新建提示词</h2>
-            <p className="mt-1 text-base text-text-muted">保存常用提示词，之后可以在库里快速查找和复制。</p>
+          <div className="min-w-0">
+            <h2 className="line-clamp-1 text-base font-semibold text-text-strong">使用模板：{prompt.title}</h2>
+            <p className="mt-1 text-base text-text-muted">补齐必填变量后，带入创作页继续生成。</p>
           </div>
           <button
             aria-label="关闭"
             className="inline-flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-fill-hover hover:text-text-strong"
-            disabled={saving}
+            disabled={resolveState.loading}
             type="button"
             onClick={onClose}
           >
@@ -1093,122 +1119,84 @@ function CreatePromptDialog({
           </button>
         </header>
 
-        <div className="art-pilot-scrollbar min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-5">
-          <div className="flex rounded-lg bg-fill-hover p-0.5">
-            <button
-              aria-pressed={mode === 'manual'}
-              className={cn(
-                'h-8 flex-1 cursor-pointer rounded-md px-3 text-base font-semibold transition-colors',
-                mode === 'manual' ? 'bg-background-solid text-text-strong shadow-sm' : 'text-text-muted hover:text-text-strong',
-              )}
-              type="button"
-              onClick={() => setMode('manual')}
-            >
-              手动创建
-            </button>
-            <button
-              aria-pressed={mode === 'url'}
-              className={cn(
-                'h-8 flex-1 cursor-pointer rounded-md px-3 text-base font-semibold transition-colors',
-                mode === 'url' ? 'bg-background-solid text-text-strong shadow-sm' : 'text-text-muted hover:text-text-strong',
-              )}
-              type="button"
-              onClick={() => setMode('url')}
-            >
-              从 URL 导入
-            </button>
+        <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] gap-4 overflow-hidden px-5 py-5">
+          <div className="art-pilot-scrollbar min-h-0 space-y-3 overflow-y-auto pr-1">
+            {prompt.variables.length > 0 ? (
+              prompt.variables.map((variable) => (
+                <div className="rounded-lg border border-border bg-background-subtle p-3" key={variable.key}>
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <label className="text-base font-semibold text-text-strong" htmlFor={`prompt-variable-${variable.key}`}>
+                      {variable.label}
+                    </label>
+                    {variable.required ? (
+                      <span className="rounded-md border border-border bg-background-solid px-2 py-0.5 text-base font-semibold text-text-muted">
+                        REQUIRED
+                      </span>
+                    ) : null}
+                  </div>
+                  {variable.description ? <p className="mb-2 text-base text-text-muted">{variable.description}</p> : null}
+
+                  {variable.type === 'text' ? (
+                    <textarea
+                      className="min-h-20 w-full resize-y rounded-lg border border-border bg-fill px-3 py-2 text-base leading-6 text-text-strong outline-none transition-colors placeholder:text-text-muted focus:border-border-hover"
+                      id={`prompt-variable-${variable.key}`}
+                      placeholder={variable.placeholder ?? `填写 ${variable.label}`}
+                      value={textValues[variable.key] ?? ''}
+                      onChange={(event) => setTextValues((currentValues) => ({
+                        ...currentValues,
+                        [variable.key]: event.target.value,
+                      }))}
+                    />
+                  ) : (
+                    <div>
+                      <Input
+                        accept="image/*"
+                        id={`prompt-variable-${variable.key}`}
+                        multiple={getImageVariableMaxCount(variable) > 1}
+                        type="file"
+                        onChange={(event) => void selectImages(variable, event.target.files)}
+                      />
+                      <div className="mt-2 grid grid-cols-3 gap-2">
+                        {(imageValues[variable.key] ?? []).map((image) => (
+                          <div className="aspect-square overflow-hidden rounded-lg bg-fill" key={image.id} title={image.path}>
+                            <img alt={image.name} className="size-full object-cover" src={image.imageUrl} />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))
+            ) : (
+              <div className="rounded-lg bg-background-subtle p-4 text-base text-text-muted">
+                这个模板没有变量，可以直接带入创作页。
+              </div>
+            )}
           </div>
 
-          {mode === 'url' ? (
-            <div className="rounded-lg border border-border bg-background-subtle p-3">
-              <label className="block">
-                <span className="mb-1.5 block text-base font-semibold text-text-strong">提示词链接</span>
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="粘贴 YouMind 提示词详情页链接"
-                    value={importUrl}
-                    onChange={(event) => setImportUrl(event.target.value)}
-                  />
-                  <Button className="shrink-0" disabled={importing || !importUrl.trim()} onClick={() => void previewImport()}>
-                    {importing ? '获取中...' : '获取预览'}
-                  </Button>
-                </div>
-              </label>
-              {importError ? <p className="mt-2 text-base text-text-error">{importError}</p> : null}
-              {importDraft ? (
-                <div className="mt-3 flex flex-wrap gap-2 text-base text-text-muted">
-                  <span className="rounded-md bg-fill-hover px-2 py-1">来源：{getSourceSiteLabel(importDraft.sourceSite)}</span>
-                  {importDraft.sourceAuthor ? <span className="rounded-md bg-fill-hover px-2 py-1">作者：{importDraft.sourceAuthor}</span> : null}
-                  {importDraft.previewImages.length > 0 ? <span className="rounded-md bg-fill-hover px-2 py-1">{importDraft.previewImages.length} 张预览图</span> : null}
-                  {importDraft.categories.length > 0 ? <span className="rounded-md bg-fill-hover px-2 py-1">{importDraft.categories.length} 个分类</span> : null}
-                </div>
-              ) : null}
-            </div>
-          ) : null}
-
-          {previewImages.length > 0 ? (
-            <div>
-              <div className="mb-2 text-base font-semibold text-text-strong">预览图</div>
-              <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
-                {previewImages.map((image, index) => (
-                  <div className="aspect-square overflow-hidden rounded-lg bg-fill" key={`${image.url}-${index}`}>
-                    <img
-                      alt={image.alt ?? `预览图 ${index + 1}`}
-                      className="size-full object-cover"
-                      src={image.url}
-                    />
-                  </div>
-                ))}
+          <section className="flex min-h-0 flex-col rounded-lg border border-border bg-background-subtle">
+            <header className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-3">
+              <h3 className="text-base font-semibold text-text-strong">最终 Prompt 预览</h3>
+              <span className="text-base text-text-muted">{preview.previewPrompt.length} 字符</span>
+            </header>
+            <pre className="art-pilot-scrollbar min-h-0 flex-1 overflow-y-auto whitespace-pre-wrap p-4 text-base leading-6 text-text-strong">
+              {preview.previewPrompt || '填写变量后会显示最终 Prompt'}
+            </pre>
+            {preview.errors.length > 0 || allReferences.length > MAX_IMAGE_REFERENCES || resolveState.error ? (
+              <div className="shrink-0 border-t border-border px-4 py-3 text-base text-text-error">
+                {resolveState.error ?? (allReferences.length > MAX_IMAGE_REFERENCES ? `参考图最多 ${MAX_IMAGE_REFERENCES} 张` : preview.errors[0])}
               </div>
-            </div>
-          ) : null}
-
-          <label className="block">
-            <span className="mb-1.5 block text-base font-semibold text-text-strong">标题</span>
-            <Input
-              autoFocus
-              placeholder="例如：产品海报背景生成"
-              value={title}
-              onChange={(event) => setTitle(event.target.value)}
-            />
-          </label>
-
-          <label className="block">
-            <span className="mb-1.5 block text-base font-semibold text-text-strong">描述</span>
-            <Input
-              placeholder="可选，用来说明适用场景"
-              value={description}
-              onChange={(event) => setDescription(event.target.value)}
-            />
-          </label>
-
-          <label className="block">
-            <span className="mb-1.5 block text-base font-semibold text-text-strong">Prompt</span>
-            <textarea
-              className="min-h-48 w-full resize-y rounded-lg border border-border bg-fill px-3 py-2 text-base font-medium leading-6 text-text-strong outline-none transition-colors placeholder:text-text-muted focus:border-border-hover disabled:cursor-not-allowed disabled:opacity-50"
-              placeholder="输入要保存的提示词内容"
-              value={content}
-              onChange={(event) => setContent(event.target.value)}
-            />
-          </label>
-
-          <label className="block">
-            <span className="mb-1.5 block text-base font-semibold text-text-strong">分类</span>
-            <Input
-              placeholder="可选，用逗号分隔，例如：海报, 电商, 写实"
-              value={categories}
-              onChange={(event) => setCategories(event.target.value)}
-            />
-          </label>
+            ) : null}
+          </section>
         </div>
 
         <footer className="flex shrink-0 justify-end gap-2 border-t border-border px-5 py-4">
-          <Button disabled={saving} variant="ghost" onClick={onClose}>
+          <Button disabled={resolveState.loading} variant="ghost" onClick={onClose}>
             取消
           </Button>
-          <Button className="gap-1.5 bg-text-strong text-background-solid hover:bg-text-muted" disabled={!canSave} type="submit">
+          <Button className="gap-1.5 bg-text-strong text-background-solid hover:bg-text-muted" disabled={!canUse} type="submit">
             <Plus className="size-3.5" strokeWidth={1.8} />
-            {saving ? '保存中...' : '保存提示词'}
+            {resolveState.loading ? '解析中...' : '带入创作页'}
           </Button>
         </footer>
       </form>
@@ -1219,7 +1207,7 @@ function CreatePromptDialog({
 function InfoTile({ label, value }: { label: string, value: string }) {
   return (
     <div className="rounded-lg bg-background-subtle px-3 py-2">
-      <div className="text-[11px] font-medium leading-4 text-text-muted">{label}</div>
+      <div className="text-base font-medium leading-4 text-text-muted">{label}</div>
       <div className="mt-0.5 line-clamp-1 text-base font-semibold text-text-strong">{value}</div>
     </div>
   )
@@ -1293,16 +1281,92 @@ function isNonEmptyString(value: string | undefined): value is string {
   return typeof value === 'string' && value.trim().length > 0
 }
 
-function parseCategoryInput(value: string) {
-  return [...new Set(value.split(/[,，]/).map((category) => category.trim()).filter(Boolean))]
+function buildPromptVariableValues(
+  variables: PromptVariable[],
+  textValues: Record<string, string>,
+  imageValues: Record<string, PromptImageInputValue[]>,
+): PromptVariableValue[] {
+  return variables.map((variable) => {
+    if (variable.type === 'image') {
+      return {
+        key: variable.key,
+        type: 'image',
+        imageIds: (imageValues[variable.key] ?? []).map((image) => image.id),
+      }
+    }
+
+    return {
+      key: variable.key,
+      type: 'text',
+      value: textValues[variable.key] ?? '',
+    }
+  })
 }
 
-function getErrorMessage(error: unknown) {
-  return error instanceof Error ? error.message : String(error)
+async function createPromptImageInputValue(file: File): Promise<PromptImageInputValue | null> {
+  const filePath = window.api.getPathForFile(file)
+
+  if (!filePath) {
+    return null
+  }
+
+  return {
+    id: crypto.randomUUID(),
+    name: file.name,
+    path: filePath,
+    imageUrl: await readFileAsDataUrl(file),
+  }
 }
+
+function mapPromptImagesToReferences(
+  imageInputs: Array<{ variableKey: string, imageIds: string[] }>,
+  imageValues: Record<string, PromptImageInputValue[]>,
+): ImageReference[] {
+  const imagesById = new Map(Object.values(imageValues).flat().map((image) => [image.id, image]))
+  const references: ImageReference[] = []
+
+  for (const imageInput of imageInputs) {
+    for (const imageId of imageInput.imageIds) {
+      const image = imagesById.get(imageId)
+
+      if (!image || references.some((reference) => reference.path === image.path)) {
+        continue
+      }
+
+      references.push({
+        id: image.id,
+        kind: 'local-file',
+        path: image.path,
+        name: image.name,
+        imageUrl: image.imageUrl,
+      })
+    }
+  }
+
+  return references.slice(0, MAX_IMAGE_REFERENCES)
+}
+
+function readFileAsDataUrl(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader()
+
+    reader.addEventListener('load', () => {
+      resolve(String(reader.result))
+    })
+    reader.addEventListener('error', () => {
+      reject(reader.error ?? new Error('读取参考图失败'))
+    })
+    reader.readAsDataURL(file)
+  })
+}
+
 
 function getSourceSiteLabel(sourceSite: PromptRecord['sourceSite']) {
-  return sourceSite === 'youmind' ? 'YouMind' : '手动'
+  if (sourceSite === 'youmind') {
+    return 'YouMind'
+  }
+
+  return sourceSite === 'other' ? '其他' : '手动'
 }
 
 function formatDate(timestamp: number) {

@@ -3,6 +3,7 @@ import { createHashRouter } from 'react-router'
 import { AssetDetailPage, AssetManagementPage } from '@/features/AssetManagement'
 import { ImageGenerationPage } from '@/features/ImageGeneration'
 import { PromptManagementPage } from '@/features/PromptManagement'
+import { PromptTemplateEditorPage } from '@/features/PromptTemplateEditorPage'
 import { SettingPage } from '@/features/Setting'
 import { AppLayout } from '@/layout/AppLayout'
 import { AppNoHeaderLayout } from '@/layout/AppNoHeaderLayout'
@@ -36,6 +37,15 @@ export const router = createHashRouter([
         handle: {
           meta: {
             title: '提示词管理',
+          },
+        },
+      },
+      {
+        path: 'prompts/new',
+        element: <PromptTemplateEditorPage />,
+        handle: {
+          meta: {
+            title: '新建提示词模板',
           },
         },
       },

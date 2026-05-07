@@ -1,5 +1,5 @@
 import { IPC_CHANNELS } from '@art-pilot/shared'
-import type { SavePromptRequest } from '@art-pilot/shared'
+import type { PromptTemplateDraft, ResolvePromptTemplateRequest, SavePromptRequest } from '@art-pilot/shared'
 import { ipcHandler } from './baseController'
 import type { Controller } from './baseController'
 import type { PromptImportService } from '../services/promptImportService'
@@ -16,6 +16,22 @@ export class PromptController implements Controller {
 
   register() {
     logger.info('registering prompt IPC handlers')
+    ipcHandler.handle(IPC_CHANNELS.prompt.fillFromUrl, (url: string) => {
+      return this.promptImportService.fillFromUrl(url)
+    })
+
+    ipcHandler.handle(IPC_CHANNELS.prompt.saveTemplate, (request: PromptTemplateDraft) => {
+      return this.promptService.savePromptTemplate(request)
+    })
+
+    ipcHandler.handle(IPC_CHANNELS.prompt.listTemplates, () => {
+      return this.promptService.listPromptTemplates()
+    })
+
+    ipcHandler.handle(IPC_CHANNELS.prompt.resolveTemplate, (request: ResolvePromptTemplateRequest) => {
+      return this.promptService.resolvePromptTemplate(request)
+    })
+
     ipcHandler.handle(IPC_CHANNELS.prompt.previewImport, (url: string) => {
       return this.promptImportService.previewImport(url)
     })

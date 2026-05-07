@@ -2,7 +2,7 @@ import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import { IPC_CHANNELS } from '@art-pilot/shared'
 import type { AssetListQuery } from '@art-pilot/shared'
 import type { ImageGenerationEvent, ImageGenerationRequest } from '@art-pilot/shared'
-import type { SavePromptRequest } from '@art-pilot/shared'
+import type { PromptTemplateDraft, ResolvePromptTemplateRequest, SavePromptRequest } from '@art-pilot/shared'
 import type { UpdateAppSettingsRequest } from '@art-pilot/shared'
 
 contextBridge.exposeInMainWorld('versions', {
@@ -80,6 +80,18 @@ contextBridge.exposeInMainWorld('api', {
   },
   openExternalUrl: (url: string) => {
     return ipcRenderer.invoke(IPC_CHANNELS.system.openExternalUrl, url)
+  },
+  fillPromptTemplateFromUrl: (url: string) => {
+    return ipcRenderer.invoke(IPC_CHANNELS.prompt.fillFromUrl, url)
+  },
+  savePromptTemplate: (request: PromptTemplateDraft) => {
+    return ipcRenderer.invoke(IPC_CHANNELS.prompt.saveTemplate, request)
+  },
+  listPromptTemplates: () => {
+    return ipcRenderer.invoke(IPC_CHANNELS.prompt.listTemplates)
+  },
+  resolvePromptTemplate: (request: ResolvePromptTemplateRequest) => {
+    return ipcRenderer.invoke(IPC_CHANNELS.prompt.resolveTemplate, request)
   },
   previewPromptImport: (url: string) => {
     return ipcRenderer.invoke(IPC_CHANNELS.prompt.previewImport, url)

@@ -1,6 +1,6 @@
 import type { AppSettings, CodexImageCleanupPolicy } from '@art-pilot/shared'
 import { FolderOpen } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 
 import {
   Select,
@@ -10,6 +10,8 @@ import {
 } from '@/components/Select'
 import { Button } from '@/components/Button'
 import { Input } from '@/components/Input'
+import { useApiRequest } from '@/hooks/useApiRequest'
+import { getErrorMessage, useLoadingState } from '@/hooks/useLoadingState'
 import { SettingsList, SettingsPanelHeader, SettingsRow } from '../components/SettingPanelPrimitives'
 
 const cleanupOptions: Array<{
@@ -31,46 +33,37 @@ const cleanupOptionLabelMap = new Map(
 )
 
 export function StoragePanel() {
-  const [settings, setSettings] = useState<AppSettings | null>(null)
+  const getSettings = useCallback(() => window.api.getSettings(), [])
+  const {
+    data: settings,
+    error: settingsError,
+    execute: fetchSettings,
+    loading,
+    setData: setSettings,
+  } = useApiRequest(getSettings, {
+    initialData: null as AppSettings | null,
+    initialLoading: true,
+  })
   const [imageLibraryPath, setImageLibraryPath] = useState('')
   const [codexImageCleanup, setCodexImageCleanup] = useState<CodexImageCleanupPolicy>('never')
-  const [loading, setLoading] = useState(true)
-  const [updating, setUpdating] = useState(false)
+  const updateState = useLoadingState()
   const [statusText, setStatusText] = useState<string | null>(null)
 
   useEffect(() => {
-    let alive = true
-
     async function loadSettings() {
-      setLoading(true)
       setStatusText(null)
 
-      try {
-        // 设置真实来源是主进程 SQLite；renderer 只保留当前表单草稿。
-        const result = await window.api.getSettings()
+      // 设置真实来源是主进程 SQLite；renderer 只保留当前表单草稿。
+      const result = await fetchSettings()
 
-        if (alive) {
-          setSettings(result)
-          setImageLibraryPath(result.imageLibraryPath)
-          setCodexImageCleanup(result.codexImageCleanup)
-        }
-      } catch (error) {
-        if (alive) {
-          setStatusText(error instanceof Error ? error.message : String(error))
-        }
-      } finally {
-        if (alive) {
-          setLoading(false)
-        }
+      if (result) {
+        setImageLibraryPath(result.imageLibraryPath)
+        setCodexImageCleanup(result.codexImageCleanup)
       }
     }
 
     void loadSettings()
-
-    return () => {
-      alive = false
-    }
-  }, [])
+  }, [fetchSettings])
 
   async function selectLibraryFolder() {
     setStatusText(null)
@@ -83,19 +76,19 @@ export function StoragePanel() {
         await updateImageLibraryPath(selectedPath)
       }
     } catch (error) {
-      setStatusText(error instanceof Error ? error.message : String(error))
+      setStatusText(getErrorMessage(error))
     }
   }
 
   async function updateImageLibraryPath(nextPath: string) {
     const trimmedPath = nextPath.trim()
 
-    if (!settings || updating || !trimmedPath || trimmedPath === settings.imageLibraryPath) {
+    if (!settings || updateState.loading || !trimmedPath || trimmedPath === settings.imageLibraryPath) {
       setImageLibraryPath(settings?.imageLibraryPath ?? nextPath)
       return
     }
 
-    setUpdating(true)
+    updateState.startLoading()
     setStatusText(null)
 
     try {
@@ -105,9 +98,11 @@ export function StoragePanel() {
       setImageLibraryPath(nextSettings.imageLibraryPath)
     } catch (error) {
       setImageLibraryPath(settings.imageLibraryPath)
-      setStatusText(error instanceof Error ? error.message : String(error))
+      updateState.failLoading(error)
+      setStatusText(getErrorMessage(error))
+      return
     } finally {
-      setUpdating(false)
+      updateState.stopLoading()
     }
   }
 
@@ -135,7 +130,7 @@ export function StoragePanel() {
     } catch (error) {
       setSettings(previousSettings)
       setCodexImageCleanup(previousPolicy)
-      setStatusText(error instanceof Error ? error.message : String(error))
+      setStatusText(getErrorMessage(error))
     }
   }
 
@@ -146,21 +141,21 @@ export function StoragePanel() {
       // 打开当前已保存的图片库目录，主进程会在目录不存在时先创建。
       await window.api.openImageLibraryFolder()
     } catch (error) {
-      setStatusText(error instanceof Error ? error.message : String(error))
+      setStatusText(getErrorMessage(error))
     }
   }
 
   return (
     <>
       <SettingsPanelHeader description="图片库路径和 Codex 临时产物清理策略" title="数据存储" />
-      {statusText ? <p className="mb-3 text-base text-text-muted">{statusText}</p> : null}
+      {statusText || settingsError ? <p className="mb-3 text-base text-text-muted">{statusText ?? settingsError}</p> : null}
       <SettingsList>
         <SettingsRow
           action={
             <div className="flex w-full max-w-[520px] items-center gap-2">
               <Input
                 className="flex-1"
-                disabled={loading || updating}
+                disabled={loading || updateState.loading}
                 onBlur={() => void updateImageLibraryPath(imageLibraryPath)}
                 onChange={(event) => setImageLibraryPath(event.target.value)}
                 onKeyDown={(event) => {
@@ -170,7 +165,7 @@ export function StoragePanel() {
                 }}
                 value={imageLibraryPath}
               />
-              <Button disabled={loading || updating} onClick={selectLibraryFolder}>
+              <Button disabled={loading || updateState.loading} onClick={selectLibraryFolder}>
                 <FolderOpen className="size-4" strokeWidth={1.9} />
               </Button>
               <Button disabled={loading} onClick={openLibraryFolder}>

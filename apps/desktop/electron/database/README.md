@@ -166,7 +166,7 @@ Art Pilot 桌面端使用 SQLite 存储本地数据，数据库文件名为 `art
 
 ### `prompts`
 
-提示词管理表。用于保存手动创建或从外部来源导入的提示词。
+提示词管理表。用于保存手动创建或从外部链接填充的提示词模板。
 
 | 字段 | 类型 | 可为空 | 说明 |
 | --- | --- | --- | --- |
@@ -174,12 +174,13 @@ Art Pilot 桌面端使用 SQLite 存储本地数据，数据库文件名为 `art
 | `title` | `TEXT` | 否 | 提示词标题。 |
 | `content` | `TEXT` | 否 | 提示词正文。 |
 | `description` | `TEXT` | 是 | 提示词说明。 |
-| `source_site` | `TEXT` | 否 | 来源站点。当前取值：`manual`、`youmind`。 |
-| `source_url` | `TEXT` | 是 | 来源链接。存在时用于去重更新。 |
+| `source_site` | `TEXT` | 否 | 来源站点。当前取值：`manual`、`youmind`、`other`。 |
+| `source_url` | `TEXT` | 是 | 来源链接。仅作为元数据和查询字段，不作为唯一身份。 |
 | `source_author` | `TEXT` | 是 | 来源作者。 |
 | `original_source_url` | `TEXT` | 是 | 原始来源链接。 |
 | `original_language` | `TEXT` | 是 | 原始语言。 |
 | `categories_json` | `TEXT` | 否 | 分类 JSON 数组，默认值为 `[]`。 |
+| `variables_json` | `TEXT` | 否 | 模板变量 JSON 数组，默认值为 `[]`。 |
 | `preview_images_json` | `TEXT` | 否 | 预览图 JSON 数组，默认值为 `[]`。 |
 | `created_at` | `INTEGER` | 否 | 创建时间，毫秒级 Unix 时间戳。 |
 | `updated_at` | `INTEGER` | 否 | 更新时间，毫秒级 Unix 时间戳。 |
@@ -200,7 +201,7 @@ Art Pilot 桌面端使用 SQLite 存储本地数据，数据库文件名为 `art
 | 索引 | 字段 | 用途 |
 | --- | --- | --- |
 | `idx_prompts_updated_at` | `updated_at DESC` | 加速提示词列表按更新时间倒序读取。 |
-| `idx_prompts_source_url` | `source_url` | 对非空来源链接做唯一约束，避免重复导入同一来源。 |
+| `idx_prompts_source_url` | `source_url` | 加速按来源链接查询；允许同一来源创建多个模板。 |
 
 主要使用方：
 

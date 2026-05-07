@@ -255,7 +255,9 @@ export function runCodexExecStreaming(
     args.push('--image', imagePath)
   }
 
-  args.push('-')
+  // `--image <FILE>...` is variadic in Codex CLI. Without `--`, the stdin
+  // prompt marker `-` can be consumed as another image path.
+  args.push('--', '-')
   logger.info(
     'spawning codex streaming exec: executable=%s sandbox=%s images=%d promptLength=%d startupTimeoutMs=%s inactivityTimeoutMs=%s absoluteTimeoutMs=%s',
     executablePath,

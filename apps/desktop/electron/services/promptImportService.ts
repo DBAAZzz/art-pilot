@@ -21,6 +21,10 @@ type CreativeWorkJsonLd = {
 }
 
 export class PromptImportService {
+  async fillFromUrl(url: string): Promise<PromptImportDraft> {
+    return this.previewImport(url)
+  }
+
   async previewImport(url: string): Promise<PromptImportDraft> {
     const promptUrl = normalizeYouMindPromptUrl(url)
     logger.info('previewing prompt import: url=%s', formatUrlForLog(promptUrl))
@@ -57,6 +61,7 @@ export class PromptImportService {
       originalSourceUrl: normalizeOptionalUrl(creativeWork?.isBasedOn ?? creativeWork?.author?.url),
       originalLanguage: normalizeText(creativeWork?.inLanguage),
       categories: extractCategories(html),
+      variables: [],
       previewImages,
     }
   }

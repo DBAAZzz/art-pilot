@@ -47,6 +47,8 @@
   --fill-hover: rgba(0, 0, 0, 0.04);
   /* 按下或激活时用于可交互 UI 元素的填充背景色 */
   --fill-active: #dcdede;
+  /* 主题强调色，使用 VS Code 蓝 */
+  --accent: #007acc;
   /* 低强调度分隔线颜色 */
   --separator-subtle: #e9eaec;
   /* 默认边框颜色 */

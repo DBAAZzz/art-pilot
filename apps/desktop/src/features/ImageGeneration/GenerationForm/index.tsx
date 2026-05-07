@@ -176,7 +176,7 @@ export function GenerationForm({
                       </div>
                     )}
                   </div>
-                  <span className="min-w-0 flex-1 truncate text-[12px] leading-4 text-text-muted">{reference.name ?? reference.path}</span>
+                  <span className="min-w-0 flex-1 truncate text-base leading-4 text-text-muted">{reference.name ?? reference.path}</span>
                   <button
                     aria-label={`移除参考图 ${reference.name ?? reference.path}`}
                     className="flex size-5 shrink-0 cursor-pointer items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-fill-active hover:text-text-strong"

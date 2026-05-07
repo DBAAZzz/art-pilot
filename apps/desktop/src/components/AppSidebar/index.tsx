@@ -1,8 +1,9 @@
 import { Settings } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { NavLink } from 'react-router'
 
 import { SidebarNavButton } from './SidebarNavButton'
+import { usePointerDrag } from '@/hooks/usePointerDrag'
 import { appNavigationItems } from '@/router/navigation'
 
 const SIDEBAR_WIDTH_STORAGE_KEY = 'art-pilot:sidebar-width'
@@ -12,53 +13,27 @@ const MAX_SIDEBAR_WIDTH = 320
 
 export function AppSidebar() {
   const [width, setWidth] = useState(() => readStoredSidebarWidth())
-  const resizeStateRef = useRef<{
-    startX: number
-    startWidth: number
-  } | null>(null)
+  const handleResizeDrag = useCallback((event: PointerEvent, resizeState: { startX: number, startWidth: number }) => {
+    setWidth(clampSidebarWidth(resizeState.startWidth + event.clientX - resizeState.startX))
+  }, [])
+  const resizeDrag = usePointerDrag({
+    cursor: 'col-resize',
+    onDrag: handleResizeDrag,
+    userSelect: 'none',
+  })
 
   useEffect(() => {
     window.localStorage.setItem(SIDEBAR_WIDTH_STORAGE_KEY, String(width))
   }, [width])
 
-  useEffect(() => {
-    const handlePointerMove = (event: PointerEvent) => {
-      const resizeState = resizeStateRef.current
-
-      if (!resizeState) {
-        return
-      }
-
-      setWidth(clampSidebarWidth(resizeState.startWidth + event.clientX - resizeState.startX))
-    }
-
-    const handlePointerUp = () => {
-      resizeStateRef.current = null
-      document.body.style.cursor = ''
-      document.body.style.userSelect = ''
-    }
-
-    window.addEventListener('pointermove', handlePointerMove)
-    window.addEventListener('pointerup', handlePointerUp)
-    window.addEventListener('pointercancel', handlePointerUp)
-
-    return () => {
-      window.removeEventListener('pointermove', handlePointerMove)
-      window.removeEventListener('pointerup', handlePointerUp)
-      window.removeEventListener('pointercancel', handlePointerUp)
-      document.body.style.cursor = ''
-      document.body.style.userSelect = ''
-    }
-  }, [])
-
   const startResize = (event: React.PointerEvent<HTMLDivElement>) => {
-    event.preventDefault()
-    resizeStateRef.current = {
-      startX: event.clientX,
-      startWidth: width,
-    }
-    document.body.style.cursor = 'col-resize'
-    document.body.style.userSelect = 'none'
+    resizeDrag.startDrag({
+      event,
+      state: {
+        startX: event.clientX,
+        startWidth: width,
+      },
+    })
   }
 
   const resetWidth = () => {

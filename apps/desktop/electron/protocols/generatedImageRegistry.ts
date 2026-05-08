@@ -117,7 +117,7 @@ export class GeneratedImageRegistry {
   }
 
   createAssetThumbnailUrl(imageId: string) {
-    return `artpilot-image://asset-thumbnail/${encodeURIComponent(imageId)}?v=2`
+    return `artpilot-image://asset-thumbnail/${encodeURIComponent(imageId)}?v=3`
   }
 
   private createKey(jobId: string, index: number): GeneratedImageKey {

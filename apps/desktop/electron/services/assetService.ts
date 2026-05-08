@@ -10,6 +10,7 @@ import type {
   ImageReference,
 } from '@art-pilot/shared'
 import type { DatabaseService } from './databaseService'
+import { warmAssetThumbnailCache } from '../protocols/generatedImageProtocol'
 import { generatedImageRegistry } from '../protocols/generatedImageRegistry'
 import { createLogger } from '../utils/logger'
 
@@ -108,8 +109,14 @@ export class AssetService {
       `)
       .all(...params, limit, offset) as AssetRow[]
 
+    const items = rows.map(mapAssetRowToAssetImage)
+    warmAssetThumbnailCache(items.map((item) => ({
+      imageId: item.imageId,
+      imagePath: item.imagePath,
+    })))
+
     return {
-      items: rows.map(mapAssetRowToAssetImage),
+      items,
       total: totalRow.total,
       offset,
       limit,

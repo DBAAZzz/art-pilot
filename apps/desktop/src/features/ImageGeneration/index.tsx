@@ -585,7 +585,7 @@ export function ImageGenerationPage() {
         aria-valuemax={MAX_FORM_PANEL_WIDTH}
         aria-valuemin={MIN_FORM_PANEL_WIDTH}
         aria-valuenow={formPanelWidth}
-        className="group flex cursor-col-resize items-stretch justify-center px-[5px]"
+        className="group flex cursor-col-resize items-stretch justify-center"
         role="separator"
         tabIndex={0}
         title="拖动调整宽度，双击恢复默认"
@@ -593,7 +593,7 @@ export function ImageGenerationPage() {
         onKeyDown={handlePanelResizeKeyDown}
         onPointerDown={startPanelResize}
       >
-        <span className="my-2 block w-px rounded-full bg-border transition-colors group-hover:bg-border-hover group-focus-visible:bg-border-hover" />
+        <span className="block w-px rounded-full bg-border transition-colors group-hover:bg-border-hover group-focus-visible:bg-border-hover" />
       </div>
 
       <RecentTaskList tasks={recentTasks} onCancelTask={cancelGeneration} />

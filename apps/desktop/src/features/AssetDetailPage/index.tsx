@@ -174,7 +174,7 @@ export function AssetDetailPage() {
 
   if (loading) {
     return (
-      <section className="h-full min-h-0 rounded-lg bg-background-solid">
+      <section className="col-span-2 h-full min-h-0 rounded-lg bg-background-solid">
         <StateMessage icon={<Loader2 className="size-5 animate-spin" strokeWidth={1.8} />} title="正在加载图片详情" />
       </section>
     )
@@ -182,7 +182,7 @@ export function AssetDetailPage() {
 
   if (error || !asset) {
     return (
-      <section className="h-full min-h-0 rounded-lg bg-background-solid">
+      <section className="col-span-2 h-full min-h-0 rounded-lg bg-background-solid">
         <StateMessage title="图片详情加载失败" description={error ?? '未知错误'} />
       </section>
     )
@@ -191,7 +191,7 @@ export function AssetDetailPage() {
   const mainPreviewItem = previewItems[0]
 
   return (
-    <section className="grid h-full min-h-0 grid-cols-[minmax(0,1fr)_380px] overflow-hidden rounded-lg bg-background-solid">
+    <section className="col-span-2 grid h-full min-h-0 grid-cols-[minmax(0,1fr)_380px] overflow-hidden rounded-lg bg-background-solid">
       <div className="min-h-0 bg-background-solid">
         <header className="flex h-14 items-center justify-between border-b border-border bg-background-solid/88 px-4 backdrop-blur">
           <div className="flex items-center gap-2">

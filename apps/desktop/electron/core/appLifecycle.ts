@@ -22,7 +22,6 @@ export class AppLifecycle {
 
   start() {
     logger.info('app lifecycle starting: platform=%s packaged=%s', process.platform, String(app.isPackaged))
-    app.disableHardwareAcceleration()
     registerGeneratedImageProtocolScheme()
 
     app.whenReady().then(() => {

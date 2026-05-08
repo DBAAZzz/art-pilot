@@ -11,7 +11,7 @@ import { AppNoHeaderLayout } from '@/layout/AppNoHeaderLayout'
 export const router = createHashRouter([
   {
     path: '/',
-    element: <AppLayout />,
+    element: <AppNoHeaderLayout />,
     children: [
       {
         index: true,
@@ -41,15 +41,6 @@ export const router = createHashRouter([
         },
       },
       {
-        path: 'prompts/new',
-        element: <PromptTemplateEditorPage />,
-        handle: {
-          meta: {
-            title: '新建提示词模板',
-          },
-        },
-      },
-      {
         path: 'settings',
         element: <SettingPage />,
         handle: {
@@ -58,18 +49,27 @@ export const router = createHashRouter([
           },
         },
       },
-    ],
-  },
-  {
-    path: '/assets/:imageId',
-    element: <AppNoHeaderLayout />,
-    children: [
       {
-        index: true,
+        path: 'assets/:imageId',
         element: <AssetDetailPage />,
         handle: {
           meta: {
             title: '资产详情',
+          },
+        },
+      },
+    ],
+  },
+  {
+    path: '/prompts/new',
+    element: <AppLayout />,
+    children: [
+      {
+        index: true,
+        element: <PromptTemplateEditorPage />,
+        handle: {
+          meta: {
+            title: '新建提示词模板',
           },
         },
       },

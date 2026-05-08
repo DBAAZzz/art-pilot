@@ -1,5 +1,7 @@
-import { nativeImage, net, protocol } from 'electron'
-import { stat } from 'node:fs/promises'
+import { app, nativeImage, net, protocol } from 'electron'
+import { createHash } from 'node:crypto'
+import { mkdir, readFile, stat, writeFile } from 'node:fs/promises'
+import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { generatedImageRegistry } from './generatedImageRegistry'
 import { createLogger, formatPathForLog, formatUrlForLog } from '../utils/logger'
@@ -8,7 +10,20 @@ import type { ImageProtocolUrl } from '../types/generatedImageProtocol'
 const logger = createLogger('art-pilot:image-protocol')
 const GENERATED_IMAGE_SCHEME = 'artpilot-image'
 const IMAGE_PROTOCOL_KINDS = new Set<ImageProtocolUrl['kind']>(['generated', 'reference', 'asset-original', 'asset-thumbnail'])
-const THUMBNAIL_SIZE = 512
+const THUMBNAIL_SIZE = 320
+const THUMBNAIL_JPEG_QUALITY = 80
+const THUMBNAIL_CACHE_VERSION = 1
+const THUMBNAIL_CONTENT_TYPE = 'image/jpeg'
+const THUMBNAIL_WARMUP_BATCH_SIZE = 60
+
+type ThumbnailWarmupItem = {
+  imageId: string
+  imagePath: string
+}
+
+const pendingThumbnailWarmupKeys = new Set<string>()
+const thumbnailWarmupQueue: ThumbnailWarmupItem[] = []
+let isThumbnailWarmupRunning = false
 
 export function registerGeneratedImageProtocolScheme() {
   logger.info('registering generated image protocol scheme: scheme=%s', GENERATED_IMAGE_SCHEME)
@@ -59,7 +74,7 @@ export function registerGeneratedImageProtocolHandler() {
 
     if (parsedUrl.kind === 'asset-thumbnail') {
       logger.debug('serving thumbnail image: kind=%s path=%s', parsedUrl.kind, imagePath)
-      return createThumbnailResponse(imagePath)
+      return createThumbnailResponse(parsedUrl.imageId, imagePath)
     }
 
     logger.debug('serving image: kind=%s path=%s', parsedUrl.kind, imagePath)
@@ -122,11 +137,95 @@ function parseImageProtocolUrl(url: string) {
   }
 }
 
-function createThumbnailResponse(imagePath: string) {
+async function createThumbnailResponse(imageId: string, imagePath: string) {
+  const cachePath = await getThumbnailCachePath(imageId, imagePath)
+
+  if (cachePath) {
+    const cachedThumbnail = await readThumbnailCache(cachePath)
+
+    if (cachedThumbnail) {
+      return createImageResponse(cachedThumbnail, THUMBNAIL_CONTENT_TYPE)
+    }
+  }
+
+  const jpegBuffer = createThumbnailBuffer(imagePath)
+
+  if (!jpegBuffer) {
+    return new Response('Image not found', { status: 404 })
+  }
+
+  if (cachePath) {
+    void writeThumbnailCache(cachePath, jpegBuffer)
+  }
+
+  return createImageResponse(jpegBuffer, THUMBNAIL_CONTENT_TYPE)
+}
+
+export function warmAssetThumbnailCache(items: ThumbnailWarmupItem[]) {
+  for (const item of items.slice(0, THUMBNAIL_WARMUP_BATCH_SIZE)) {
+    const key = createThumbnailWarmupKey(item)
+
+    if (pendingThumbnailWarmupKeys.has(key)) {
+      continue
+    }
+
+    pendingThumbnailWarmupKeys.add(key)
+    thumbnailWarmupQueue.push(item)
+  }
+
+  if (!isThumbnailWarmupRunning && thumbnailWarmupQueue.length > 0) {
+    isThumbnailWarmupRunning = true
+    void runThumbnailWarmupQueue()
+  }
+}
+
+async function runThumbnailWarmupQueue() {
+  while (thumbnailWarmupQueue.length > 0) {
+    const item = thumbnailWarmupQueue.shift()
+
+    if (!item) {
+      continue
+    }
+
+    const key = createThumbnailWarmupKey(item)
+
+    try {
+      await yieldToEventLoop()
+      await ensureThumbnailCached(item)
+    } finally {
+      pendingThumbnailWarmupKeys.delete(key)
+    }
+  }
+
+  isThumbnailWarmupRunning = false
+
+  if (thumbnailWarmupQueue.length > 0) {
+    isThumbnailWarmupRunning = true
+    void runThumbnailWarmupQueue()
+  }
+}
+
+async function ensureThumbnailCached(item: ThumbnailWarmupItem) {
+  const cachePath = await getThumbnailCachePath(item.imageId, item.imagePath)
+
+  if (!cachePath || await thumbnailCacheExists(cachePath)) {
+    return
+  }
+
+  const jpegBuffer = createThumbnailBuffer(item.imagePath)
+
+  if (!jpegBuffer) {
+    return
+  }
+
+  await writeThumbnailCache(cachePath, jpegBuffer)
+}
+
+function createThumbnailBuffer(imagePath: string) {
   const image = nativeImage.createFromPath(imagePath)
 
   if (image.isEmpty()) {
-    return new Response('Image not found', { status: 404 })
+    return null
   }
 
   const thumbnail = image.resize({
@@ -134,14 +233,17 @@ function createThumbnailResponse(imagePath: string) {
     quality: 'good',
   })
 
-  const pngBuffer = thumbnail.toPNG()
-  const pngBytes = new ArrayBuffer(pngBuffer.byteLength)
-  new Uint8Array(pngBytes).set(pngBuffer)
+  return thumbnail.toJPEG(THUMBNAIL_JPEG_QUALITY)
+}
 
-  return new Response(pngBytes, {
+function createImageResponse(buffer: Buffer, contentType: string) {
+  const bytes = new ArrayBuffer(buffer.byteLength)
+  new Uint8Array(bytes).set(buffer)
+
+  return new Response(bytes, {
     headers: {
       'cache-control': 'public, max-age=31536000, immutable',
-      'content-type': 'image/png',
+      'content-type': contentType,
     },
   })
 }
@@ -152,6 +254,86 @@ function getThumbnailResizeOptions(size: Electron.Size) {
   }
 
   return { height: THUMBNAIL_SIZE }
+}
+
+async function getThumbnailCachePath(imageId: string, imagePath: string) {
+  try {
+    const fileStat = await stat(imagePath)
+
+    if (!fileStat.isFile()) {
+      return null
+    }
+
+    const cacheKey = createThumbnailCacheKey({
+      imageId,
+      mtimeMs: fileStat.mtimeMs,
+      sourcePath: imagePath,
+    })
+
+    return path.join(app.getPath('userData'), 'thumbnails', `${cacheKey}.jpg`)
+  } catch (error) {
+    logger.warn(
+      'failed to prepare thumbnail cache key: imageId=%s path=%s error=%s',
+      imageId,
+      formatPathForLog(imagePath),
+      error instanceof Error ? error.message : String(error),
+    )
+    return null
+  }
+}
+
+function createThumbnailCacheKey(input: { imageId: string; mtimeMs: number; sourcePath: string }) {
+  return createHash('sha256')
+    .update(JSON.stringify({
+      imageId: input.imageId,
+      mtimeMs: input.mtimeMs,
+      quality: THUMBNAIL_JPEG_QUALITY,
+      size: THUMBNAIL_SIZE,
+      sourcePath: input.sourcePath,
+      version: THUMBNAIL_CACHE_VERSION,
+    }))
+    .digest('hex')
+}
+
+async function readThumbnailCache(cachePath: string) {
+  try {
+    return await readFile(cachePath)
+  } catch {
+    return null
+  }
+}
+
+async function thumbnailCacheExists(cachePath: string) {
+  try {
+    const cacheStat = await stat(cachePath)
+
+    return cacheStat.isFile()
+  } catch {
+    return false
+  }
+}
+
+async function writeThumbnailCache(cachePath: string, buffer: Buffer) {
+  try {
+    await mkdir(path.dirname(cachePath), { recursive: true })
+    await writeFile(cachePath, buffer)
+  } catch (error) {
+    logger.warn(
+      'failed to write thumbnail cache: path=%s error=%s',
+      formatPathForLog(cachePath),
+      error instanceof Error ? error.message : String(error),
+    )
+  }
+}
+
+function createThumbnailWarmupKey(item: ThumbnailWarmupItem) {
+  return `${item.imageId}:${item.imagePath}`
+}
+
+function yieldToEventLoop() {
+  return new Promise<void>((resolve) => {
+    setImmediate(resolve)
+  })
 }
 
 function parseImageProtocolKind(parsedUrl: URL): ImageProtocolUrl['kind'] | null {

@@ -87,67 +87,69 @@ export function AssetManagementPage() {
   }, [navigate])
 
   return (
-    <section className="col-span-2 flex min-h-0 flex-col overflow-hidden rounded-lg bg-background-solid">
-      <header className="shrink-0 border-b border-border bg-background-solid/95 px-5 py-3 backdrop-blur">
-        <div className="flex items-center gap-3">
-          <p className="shrink-0 text-base text-text-muted">{formatStats(stats, total)}</p>
-          <div className="ml-2 flex h-8 shrink-0 rounded-lg bg-background-subtle p-0.5">
+    <section className="col-span-2 flex min-h-0 flex-col overflow-hidden bg-background-solid">
+      <header className="shrink-0 bg-background-solid/95 px-5 py-3 backdrop-blur">
+        <div className="flex flex-col gap-3">
+          <p className="text-base text-text-muted">{formatStats(stats, total)}</p>
+          <div className="flex items-center gap-3">
+            <div className="flex h-8 shrink-0 rounded-lg bg-background-subtle p-0.5">
+              <button
+                className={cn(
+                  'h-7 cursor-pointer rounded-md px-3 text-base font-medium transition-colors',
+                  !favoriteOnly ? 'bg-background-solid text-text-strong' : 'text-text-muted hover:text-text-strong',
+                )}
+                type="button"
+                onClick={() => setFavoriteOnly(false)}
+              >
+                全部
+              </button>
+              <button
+                className={cn(
+                  'h-7 cursor-pointer rounded-md px-3 text-base font-medium transition-colors',
+                  favoriteOnly ? 'bg-background-solid text-text-strong' : 'text-text-muted hover:text-text-strong',
+                )}
+                type="button"
+                onClick={() => setFavoriteOnly(true)}
+              >
+                已收藏
+              </button>
+            </div>
+            <div className="flex h-8 shrink-0 rounded-lg bg-background-subtle p-0.5">
+              <ViewModeButton
+                icon={<StretchHorizontal className="size-4" strokeWidth={1.8} />}
+                isActive={viewMode === 'date'}
+                label="按日期"
+                onClick={() => setViewMode('date')}
+              />
+              <ViewModeButton
+                icon={<Grid3X3 className="size-4" strokeWidth={1.8} />}
+                isActive={viewMode === 'flat'}
+                label="平铺"
+                onClick={() => setViewMode('flat')}
+              />
+            </div>
+            <div className="relative ml-auto w-[min(420px,42vw)] min-w-[220px]">
+              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-text-muted" strokeWidth={1.8} />
+              <Input
+                className="w-full border-transparent bg-background-subtle pl-9"
+                placeholder="搜索 prompt、文件名或任务 ID"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+              />
+            </div>
+            <div className="inline-flex h-8 shrink-0 items-center gap-1 rounded-lg bg-background-subtle px-2 text-base text-text-muted">
+              <SlidersHorizontal className="size-4" strokeWidth={1.8} />
+              {assets.length}/{total}
+            </div>
             <button
-              className={cn(
-                'h-7 cursor-pointer rounded-md px-3 text-base font-medium transition-colors',
-                !favoriteOnly ? 'bg-background-solid text-text-strong shadow-sm' : 'text-text-muted hover:text-text-strong',
-              )}
+              aria-label="重新加载资产"
+              className="flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-background-subtle hover:text-text-strong"
               type="button"
-              onClick={() => setFavoriteOnly(false)}
+              onClick={() => void refreshAssets()}
             >
-              全部
-            </button>
-            <button
-              className={cn(
-                'h-7 cursor-pointer rounded-md px-3 text-base font-medium transition-colors',
-                favoriteOnly ? 'bg-background-solid text-text-strong shadow-sm' : 'text-text-muted hover:text-text-strong',
-              )}
-              type="button"
-              onClick={() => setFavoriteOnly(true)}
-            >
-              已收藏
+              <RefreshCw className="size-4" strokeWidth={1.8} />
             </button>
           </div>
-          <div className="flex h-8 shrink-0 rounded-lg bg-background-subtle p-0.5">
-            <ViewModeButton
-              icon={<StretchHorizontal className="size-4" strokeWidth={1.8} />}
-              isActive={viewMode === 'date'}
-              label="按日期"
-              onClick={() => setViewMode('date')}
-            />
-            <ViewModeButton
-              icon={<Grid3X3 className="size-4" strokeWidth={1.8} />}
-              isActive={viewMode === 'flat'}
-              label="平铺"
-              onClick={() => setViewMode('flat')}
-            />
-          </div>
-          <div className="relative ml-auto w-[min(420px,42vw)] min-w-[220px]">
-            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-text-muted" strokeWidth={1.8} />
-            <Input
-              className="w-full border-transparent bg-background-subtle pl-9"
-              placeholder="搜索 prompt、文件名或任务 ID"
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-            />
-          </div>
-          <div className="inline-flex h-8 shrink-0 items-center gap-1 rounded-lg bg-background-subtle px-2 text-base text-text-muted">
-            <SlidersHorizontal className="size-4" strokeWidth={1.8} />
-            {assets.length}/{total}
-          </div>
-          <button
-            aria-label="重新加载资产"
-            className="flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-background-subtle hover:text-text-strong"
-            type="button"
-            onClick={() => void refreshAssets()}
-          >
-            <RefreshCw className="size-4" strokeWidth={1.8} />
-          </button>
         </div>
       </header>
 
@@ -201,7 +203,7 @@ function ViewModeButton({
       aria-label={label}
       className={cn(
         'flex h-7 cursor-pointer items-center gap-1.5 rounded-md px-2.5 text-base font-medium transition-colors',
-        isActive ? 'bg-background-solid text-text-strong shadow-sm' : 'text-text-muted hover:text-text-strong',
+        isActive ? 'bg-background-solid text-text-strong' : 'text-text-muted hover:text-text-strong',
       )}
       title={label}
       type="button"

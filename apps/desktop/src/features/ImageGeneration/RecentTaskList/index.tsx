@@ -22,19 +22,20 @@ export function RecentTaskList({
   }
 
   return (
-    <aside className="flex min-h-0 flex-col rounded-lg p-4">
-      <div className="mb-2 flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-text-strong">最近任务</h2>
+    <aside className="flex min-h-0 w-full flex-col rounded-r-lg bg-fill-hover px-3 py-4">
+      <div className="mb-3 flex items-center justify-center">
+        <h2 className="text-base font-semibold text-text-strong">最近任务</h2>
       </div>
 
       {tasks.length === 0 ? (
-        <div className="flex min-h-0 flex-1 items-center justify-center rounded-lg bg-background-subtle px-4 text-center">
+        <div className="flex min-h-0 flex-1 items-center justify-center px-4 text-center">
           <p className="text-base text-text-muted">暂无最近任务</p>
         </div>
       ) : (
-        <div className="art-pilot-scrollbar min-h-0 flex-1 space-y-2 overflow-y-auto rounded-lg bg-background-subtle p-4">
+        <div className="art-pilot-scrollbar min-h-0 flex-1 space-y-2 overflow-y-auto">
           {tasks.map((task) => (
             <GeneratedImageResult
+              className="w-full"
               key={task.jobId}
               aspectRatio={task.aspectRatio}
               completedAt={task.completedAt}

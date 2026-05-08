@@ -4,7 +4,15 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme {
-  --font-sans: "Geist Variable", "SF Pro Text", "SF Pro Display", "Segoe UI", system-ui, sans-serif;
+  --font-sans:
+    -apple-system,
+    BlinkMacSystemFont,
+    "SF Pro Text",
+    "PingFang SC",
+    "Hiragino Sans GB",
+    "Helvetica Neue",
+    Arial,
+    sans-serif;
   --text-base: 13px;
   --text-base--line-height: 20px;
   --text-title: 24px;

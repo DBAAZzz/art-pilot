@@ -185,7 +185,7 @@ export function PromptManagementPage() {
   }
 
   return (
-    <section className="col-span-2 flex min-h-0 flex-col gap-4">
+    <section className="col-span-2 flex min-h-0 flex-col gap-4 bg-background-solid p-4">
       <PromptPageToolbar
         countLabel={filteredCountLabel}
         hasActiveFilters={hasActiveGalleryFilters}
@@ -198,7 +198,7 @@ export function PromptManagementPage() {
       />
 
       {error ? (
-        <div className="rounded-lg border border-border bg-background-solid px-4 py-2 text-base text-text-error">
+        <div className="rounded-lg bg-background-subtle px-4 py-2 text-base text-text-error">
           {error}
         </div>
       ) : null}
@@ -277,8 +277,8 @@ function PromptPageToolbar({
   onViewModeChange: (viewMode: PromptViewMode) => void
 }) {
   return (
-    <header className="flex shrink-0 items-center gap-3 rounded-lg border border-border bg-background-solid px-4 py-3">
-      <label className="flex min-w-[280px] flex-1 items-center gap-2 rounded-lg border border-border bg-fill px-3 transition-colors focus-within:border-border-hover">
+    <header className="flex shrink-0 items-center gap-3 rounded-lg bg-background-subtle px-4 py-3">
+      <label className="flex min-w-[280px] flex-1 items-center gap-2 rounded-lg bg-fill px-3 transition-colors">
         <Search className="size-3.5 shrink-0 text-text-muted" strokeWidth={1.8} />
         <Input
           className="h-8 border-0 bg-transparent px-0 focus:border-0"
@@ -335,7 +335,7 @@ function ViewModeButton({
       aria-pressed={active}
       className={cn(
         'inline-flex h-8 cursor-pointer items-center justify-center gap-1.5 rounded-md px-2.5 text-base font-semibold transition-colors',
-        active ? 'bg-background-solid text-text-strong shadow-sm' : 'text-text-muted hover:text-text-strong',
+        active ? 'bg-background-solid text-text-strong' : 'text-text-muted hover:text-text-strong',
       )}
       type="button"
       onClick={onClick}
@@ -381,8 +381,8 @@ function PromptListView({
 }) {
   return (
     <div className="grid min-h-0 flex-1 grid-cols-[360px_minmax(0,1fr)] gap-4">
-      <aside className="flex min-h-0 flex-col rounded-lg border border-border bg-background-solid">
-        <header className="shrink-0 border-b border-border px-4 py-4">
+      <aside className="flex min-h-0 flex-col rounded-lg bg-background-subtle">
+        <header className="shrink-0 px-4 py-4">
           <div className="flex items-center gap-2 text-base font-semibold text-text-strong">
             <FileText className="size-4 text-text-muted" strokeWidth={1.8} />
             <span>提示词库</span>
@@ -421,7 +421,7 @@ function PromptListView({
         </div>
       </aside>
 
-      <div className="flex min-h-0 flex-col rounded-lg border border-border bg-background-solid">
+      <div className="flex min-h-0 flex-col rounded-lg bg-background-subtle">
         {selectedPrompt ? (
           <PromptDetail
             copied={copiedPromptId === selectedPrompt.id}
@@ -471,7 +471,7 @@ function PromptDetail({
   return (
     <article className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)_auto]">
       <div className="grid min-h-0 grid-cols-[minmax(0,1.35fr)_minmax(320px,0.65fr)]">
-        <div className="min-h-0 border-r border-border bg-background-subtle p-4">
+        <div className="min-h-0 bg-background-subtle p-4">
           {selectedPreviewImage ? (
             <button
               aria-label="预览当前提示词图片"
@@ -576,7 +576,7 @@ function PromptDetail({
         </div>
       </div>
 
-      <section className="max-h-[32vh] min-h-[180px] border-t border-border px-5 py-4">
+      <section className="max-h-[32vh] min-h-[180px] px-5 py-4">
         <div className="mb-2 flex items-center justify-between gap-3">
           <h2 className="text-base font-semibold text-text-strong">Prompt</h2>
           <span className="text-base text-text-muted">{prompt.content.length} 字符</span>
@@ -628,14 +628,14 @@ function PromptListItem({
   return (
     <article
       className={cn(
-        'group relative w-full rounded-lg border p-2 text-left transition-colors',
-        isSelected ? 'border-border-hover bg-background-solid-hover' : 'border-transparent bg-fill hover:bg-background-solid-hover',
+        'group relative w-full rounded-lg p-2 text-left transition-colors',
+        isSelected ? 'bg-background-solid-hover' : 'bg-fill hover:bg-background-solid-hover',
       )}
     >
       <button
         aria-label={copied ? '已复制 Prompt' : '复制 Prompt'}
         className={cn(
-          'absolute right-2 top-2 z-10 inline-flex size-7 cursor-pointer items-center justify-center rounded-md border border-border bg-background-solid text-text-muted opacity-0 shadow-sm transition hover:text-text-strong group-hover:opacity-100',
+          'absolute right-2 top-2 z-10 inline-flex size-7 cursor-pointer items-center justify-center rounded-md bg-background-solid text-text-muted opacity-0 transition hover:text-text-strong group-hover:opacity-100',
           copied && 'opacity-100 text-text-success',
         )}
         type="button"
@@ -733,7 +733,7 @@ function PromptGalleryView({
   const galleryImagePreview = useImagePreview(galleryPreviewImages)
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col rounded-lg border border-border bg-background-solid">
+    <div className="flex min-h-0 flex-1 flex-col rounded-lg bg-background-subtle">
       <PromptGalleryFilters
         collapsed={filtersCollapsed}
         filterOptions={filterOptions}
@@ -811,7 +811,7 @@ function PromptGalleryFilters({
   const ToggleIcon = collapsed ? ChevronDown : ChevronUp
 
   return (
-    <div className="shrink-0 border-b border-border px-4 py-3">
+    <div className="shrink-0 px-4 py-3">
       <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2">
           <SlidersHorizontal className="size-3.5 shrink-0 text-text-muted" strokeWidth={1.8} />
@@ -923,10 +923,10 @@ function FilterChip({
     <button
       aria-pressed={active}
       className={cn(
-        'h-7 cursor-pointer rounded-lg border px-2.5 text-base font-semibold transition-colors',
+        'h-7 cursor-pointer rounded-lg px-2.5 text-base font-semibold transition-colors',
         active
-          ? 'border-text-strong bg-text-strong text-background-solid'
-          : 'border-border bg-fill text-text-muted hover:border-border-hover hover:text-text-strong',
+          ? 'bg-text-strong text-background-solid'
+          : 'bg-fill text-text-muted hover:text-text-strong',
       )}
       type="button"
       onClick={onClick}
@@ -958,7 +958,7 @@ function PromptGalleryCard({
   const previewImage = prompt.previewImages[0]
 
   return (
-    <article className="mb-4 inline-block w-full break-inside-avoid overflow-hidden rounded-lg border border-border bg-background-solid shadow-sm">
+    <article className="mb-4 inline-block w-full break-inside-avoid overflow-hidden rounded-lg bg-background-solid">
       {previewImage && previewItem ? (
         <button
           aria-label={`预览 ${prompt.title}`}

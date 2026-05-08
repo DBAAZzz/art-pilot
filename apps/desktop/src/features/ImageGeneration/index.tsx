@@ -42,12 +42,12 @@ const aspectRatioSizeMap: Record<ImageGenerationAspectRatio, ImageGenerationSize
   '16:9': '1536x1024',
   '9:16': '1024x1536',
 }
-const FORM_PANEL_WIDTH_STORAGE_KEY = 'art-pilot:image-generation-form-panel-width'
-const DEFAULT_FORM_PANEL_WIDTH = 360
-const MIN_FORM_PANEL_WIDTH = 300
-const MAX_FORM_PANEL_WIDTH = 520
-const MIN_RECENT_TASKS_WIDTH = 360
-const PANEL_RESIZER_WIDTH = 12
+const RECENT_TASKS_WIDTH_STORAGE_KEY = 'art-pilot:image-generation-recent-tasks-width'
+const DEFAULT_RECENT_TASKS_WIDTH = 420
+const MIN_RECENT_TASKS_WIDTH = 340
+const MAX_RECENT_TASKS_WIDTH = 560
+const MIN_FORM_PANEL_WIDTH = 520
+const PANEL_RESIZER_WIDTH = 8
 
 export function ImageGenerationPage() {
   const location = useLocation()
@@ -55,7 +55,7 @@ export function ImageGenerationPage() {
   const [prompt, setPrompt] = useState('')
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>('1:1')
   const [imageCount, setImageCount] = useState<ImageCount>(1)
-  const [formPanelWidth, setFormPanelWidth] = useState(() => readStoredFormPanelWidth())
+  const [recentTasksWidth, setRecentTasksWidth] = useState(() => readStoredRecentTasksWidth())
   const [activeJobIds, setActiveJobIds] = useState<Set<string>>(() => new Set())
   const [recentTasks, setRecentTasks] = useState<RecentTask[]>([])
   const startState = useLoadingState()
@@ -72,7 +72,7 @@ export function ImageGenerationPage() {
   const [exitConfirmOpen, setExitConfirmOpen] = useState(false)
   const pendingHistoryReloadJobIdsRef = useRef(new Set<string>())
   const handlePanelResizeDrag = useCallback((event: PointerEvent, resizeState: { startX: number, startWidth: number }) => {
-    setFormPanelWidth(clampFormPanelWidth(resizeState.startWidth + event.clientX - resizeState.startX, panelContainerRef.current))
+    setRecentTasksWidth(clampRecentTasksWidth(resizeState.startWidth - (event.clientX - resizeState.startX), panelContainerRef.current))
   }, [])
   const panelResizeDrag = usePointerDrag({
     cursor: 'col-resize',
@@ -131,8 +131,8 @@ export function ImageGenerationPage() {
   }, [])
 
   useEffect(() => {
-    window.localStorage.setItem(FORM_PANEL_WIDTH_STORAGE_KEY, String(formPanelWidth))
-  }, [formPanelWidth])
+    window.localStorage.setItem(RECENT_TASKS_WIDTH_STORAGE_KEY, String(recentTasksWidth))
+  }, [recentTasksWidth])
 
   useEffect(() => {
     void loadRecentTasks('replace')
@@ -381,37 +381,37 @@ export function ImageGenerationPage() {
       event,
       state: {
         startX: event.clientX,
-        startWidth: formPanelWidth,
+        startWidth: recentTasksWidth,
       },
     })
   }
 
   function resetFormPanelWidth() {
-    setFormPanelWidth(clampFormPanelWidth(DEFAULT_FORM_PANEL_WIDTH, panelContainerRef.current))
+    setRecentTasksWidth(clampRecentTasksWidth(DEFAULT_RECENT_TASKS_WIDTH, panelContainerRef.current))
   }
 
   function handlePanelResizeKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
     if (event.key === 'ArrowLeft') {
       event.preventDefault()
-      setFormPanelWidth((currentWidth) => clampFormPanelWidth(currentWidth - 8, panelContainerRef.current))
+      setRecentTasksWidth((currentWidth) => clampRecentTasksWidth(currentWidth + 8, panelContainerRef.current))
       return
     }
 
     if (event.key === 'ArrowRight') {
       event.preventDefault()
-      setFormPanelWidth((currentWidth) => clampFormPanelWidth(currentWidth + 8, panelContainerRef.current))
+      setRecentTasksWidth((currentWidth) => clampRecentTasksWidth(currentWidth - 8, panelContainerRef.current))
       return
     }
 
     if (event.key === 'Home') {
       event.preventDefault()
-      setFormPanelWidth(MIN_FORM_PANEL_WIDTH)
+      setRecentTasksWidth(clampRecentTasksWidth(MAX_RECENT_TASKS_WIDTH, panelContainerRef.current))
       return
     }
 
     if (event.key === 'End') {
       event.preventDefault()
-      setFormPanelWidth(clampFormPanelWidth(MAX_FORM_PANEL_WIDTH, panelContainerRef.current))
+      setRecentTasksWidth(clampRecentTasksWidth(MIN_RECENT_TASKS_WIDTH, panelContainerRef.current))
     }
   }
 
@@ -516,10 +516,10 @@ export function ImageGenerationPage() {
     <div
       ref={panelContainerRef}
       className="col-span-2 grid min-h-0"
-      style={{ gridTemplateColumns: `${formPanelWidth}px ${PANEL_RESIZER_WIDTH}px minmax(0, 1fr)` }}
+      style={{ gridTemplateColumns: `minmax(${MIN_FORM_PANEL_WIDTH}px, 1fr) ${PANEL_RESIZER_WIDTH}px ${recentTasksWidth}px` }}
     >
-      <section className="min-h-0 overflow-y-auto rounded-lg bg-background-solid px-4 py-4">
-        <div className="flex w-full flex-col items-stretch">
+      <section className="min-h-0 overflow-y-auto rounded-lg bg-background-solid px-6 pb-4 pt-10">
+        <div className="mx-auto flex w-full max-w-[760px] flex-col items-stretch">
           <header className="mb-5 text-left">
             <h1 className="text-xl font-semibold text-text-strong">该做些什么</h1>
             <p className="mt-2 text-base text-text-muted">描述画面、氛围和关键细节，Art Pilot 会把它整理成生成任务。</p>
@@ -580,15 +580,15 @@ export function ImageGenerationPage() {
       </section>
 
       <div
-        aria-label="调整创作面板宽度"
+        aria-label="调整最近任务宽度"
         aria-orientation="vertical"
-        aria-valuemax={MAX_FORM_PANEL_WIDTH}
-        aria-valuemin={MIN_FORM_PANEL_WIDTH}
-        aria-valuenow={formPanelWidth}
-        className="group flex cursor-col-resize items-stretch justify-center"
+        aria-valuemax={MAX_RECENT_TASKS_WIDTH}
+        aria-valuemin={MIN_RECENT_TASKS_WIDTH}
+        aria-valuenow={recentTasksWidth}
+        className="group flex cursor-col-resize items-stretch justify-start bg-fill-hover"
         role="separator"
         tabIndex={0}
-        title="拖动调整宽度，双击恢复默认"
+        title="拖动调整最近任务宽度，双击恢复默认"
         onDoubleClick={resetFormPanelWidth}
         onKeyDown={handlePanelResizeKeyDown}
         onPointerDown={startPanelResize}
@@ -628,24 +628,24 @@ export function ImageGenerationPage() {
   )
 }
 
-function readStoredFormPanelWidth() {
-  const storedValue = window.localStorage.getItem(FORM_PANEL_WIDTH_STORAGE_KEY)
-  const parsedValue = storedValue ? Number(storedValue) : DEFAULT_FORM_PANEL_WIDTH
+function readStoredRecentTasksWidth() {
+  const storedValue = window.localStorage.getItem(RECENT_TASKS_WIDTH_STORAGE_KEY)
+  const parsedValue = storedValue ? Number(storedValue) : DEFAULT_RECENT_TASKS_WIDTH
 
   if (!Number.isFinite(parsedValue)) {
-    return DEFAULT_FORM_PANEL_WIDTH
+    return DEFAULT_RECENT_TASKS_WIDTH
   }
 
-  return clampFormPanelWidth(parsedValue)
+  return clampRecentTasksWidth(parsedValue)
 }
 
-function clampFormPanelWidth(width: number, container: HTMLElement | null = null) {
+function clampRecentTasksWidth(width: number, container: HTMLElement | null = null) {
   const containerMaxWidth = container
-    ? container.clientWidth - MIN_RECENT_TASKS_WIDTH - PANEL_RESIZER_WIDTH
-    : MAX_FORM_PANEL_WIDTH
-  const maxWidth = Math.max(MIN_FORM_PANEL_WIDTH, Math.min(MAX_FORM_PANEL_WIDTH, containerMaxWidth))
+    ? container.clientWidth - MIN_FORM_PANEL_WIDTH - PANEL_RESIZER_WIDTH
+    : MAX_RECENT_TASKS_WIDTH
+  const maxWidth = Math.max(MIN_RECENT_TASKS_WIDTH, Math.min(MAX_RECENT_TASKS_WIDTH, containerMaxWidth))
 
-  return Math.min(maxWidth, Math.max(MIN_FORM_PANEL_WIDTH, Math.round(width)))
+  return Math.min(maxWidth, Math.max(MIN_RECENT_TASKS_WIDTH, Math.round(width)))
 }
 
 function mapHistoryTaskToRecentTask(task: ImageHistoryTask): RecentTask {

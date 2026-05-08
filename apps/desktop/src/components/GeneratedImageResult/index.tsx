@@ -1,4 +1,4 @@
-import { AlertCircle, Check, CircleX, FolderOpen, ImageOff, ImagePlus, Loader2 } from 'lucide-react'
+import { CircleAlert, CircleCheck, CircleX, FolderOpen, ImageOff, ImagePlus, Loader2 } from 'lucide-react'
 import type { ImageReference } from '@art-pilot/shared'
 import { useMemo } from 'react'
 
@@ -12,9 +12,7 @@ export type GeneratedImageResultStatus = 'running' | 'complete' | 'error' | 'can
 export type GeneratedImageResultImage = ImagePreviewItem
 
 export function GeneratedImageResult({
-  aspectRatio,
   className,
-  completedAt,
   count,
   createdAt,
   error,
@@ -51,19 +49,13 @@ export function GeneratedImageResult({
 
   return (
     <>
-      <article className={cn('rounded-lg bg-fill p-3 transition-colors hover:bg-background-solid-hover', className)}>
+      <article className={cn('min-w-0 rounded-lg border border-border bg-fill p-3', className)}>
         <div className="mb-3 min-w-0">
-          <p className="line-clamp-2 min-w-0 text-base font-medium text-text-strong">{prompt}</p>
-          <div className="mt-2 flex min-w-0 flex-wrap items-center justify-between gap-x-3 gap-y-2 text-base text-text-muted">
-            <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1">
-              <MetaLine value={aspectRatio} />
-              <span>/</span>
-              <MetaLine value={`${count}张`} />
-              <span>/</span>
-              <MetaLine label={completedAt ? '完成' : '创建'} value={formatCreatedAt(completedAt ?? createdAt)} />
-            </div>
+          <div className="flex min-w-0 items-start gap-2">
+            <p className="line-clamp-2 min-w-0 flex-1 text-base font-medium text-text-strong">{prompt}</p>
             <TaskAction status={status} onCancel={onCancel} />
           </div>
+          <p className="mt-2 text-base text-text-muted">任务时间 {formatCreatedAt(createdAt)}</p>
         </div>
 
         {message && status === 'running' ? <p className="mb-3 line-clamp-2 text-base text-text-muted">{message}</p> : null}
@@ -242,14 +234,14 @@ function TaskAction({
     return (
       <button
         aria-label="取消生成任务"
-        className="inline-flex h-7 shrink-0 cursor-pointer items-center gap-1 rounded-lg px-2 text-base font-medium text-text-muted transition-colors hover:bg-fill-hover hover:text-text-error"
+        className="inline-flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-fill-hover hover:text-text-error"
+        title="取消生成任务"
         type="button"
         onClick={() => {
           void onCancel()
         }}
       >
-        <CircleX className="size-3.5" strokeWidth={1.8} />
-        <span>取消生成</span>
+        <CircleX className="size-5" fill="currentColor" stroke="var(--background-solid)" strokeWidth={1.8} />
       </button>
     )
   }
@@ -258,30 +250,35 @@ function TaskAction({
 }
 
 function StatusBadge({ status }: { status: GeneratedImageResultStatus }) {
-  const shouldShowIcon = status !== 'running'
-
   return (
     <div
       aria-label={getStatusText(status)}
-      className="inline-flex h-7 shrink-0 items-center gap-1 rounded-lg bg-fill-hover px-2 text-base text-text-muted"
+      className="inline-flex size-6 shrink-0 items-center justify-center rounded-lg"
       title={getStatusText(status)}
     >
-      {shouldShowIcon ? <StatusIcon status={status} /> : null}
-      <span>{getStatusText(status)}</span>
+      <StatusIcon status={status} />
     </div>
   )
 }
 
 function StatusIcon({ status }: { status: GeneratedImageResultStatus }) {
   if (status === 'complete') {
-    return <Check className="size-3.5 text-text-success" strokeWidth={1.9} />
+    return <CircleCheck className="size-5 text-text-success" fill="currentColor" stroke="var(--background-solid)" strokeWidth={1.8} />
   }
 
   if (status === 'error') {
-    return <AlertCircle className="size-3.5 text-text-error" strokeWidth={1.8} />
+    return <CircleAlert className="size-5 text-text-error" fill="currentColor" stroke="var(--background-solid)" strokeWidth={1.8} />
   }
 
-  return <CircleX className="size-3.5" strokeWidth={1.8} />
+  if (status === 'running') {
+    return (
+      <span className="flex size-5 items-center justify-center rounded-full bg-accent text-background-solid">
+        <Loader2 className="size-3.5 animate-spin" strokeWidth={2.2} />
+      </span>
+    )
+  }
+
+  return <CircleX className="size-5 text-text-muted" fill="currentColor" stroke="var(--background-solid)" strokeWidth={1.8} />
 }
 
 function PlaceholderIcon({ status }: { status: GeneratedImageResultStatus }) {
@@ -294,12 +291,6 @@ function PlaceholderIcon({ status }: { status: GeneratedImageResultStatus }) {
   }
 
   return <ImagePlus className="size-5" strokeWidth={1.8} />
-}
-
-function MetaLine({ label, value }: { label?: string; value: string }) {
-  return (
-    <span className="text-text-muted">{label ? `${label} ` : null}<span className="text-text-strong">{value}</span></span>
-  )
 }
 
 function getStatusText(status: GeneratedImageResultStatus) {
@@ -336,10 +327,10 @@ function getImageDisplayIndex(index: number, images: GeneratedImageResultImage[]
 
 function getImageGridClassName(slotCount: number) {
   if (slotCount === 1) {
-    return 'grid w-full max-w-[360px] grid-cols-1 gap-2'
+    return 'grid w-full max-w-full grid-cols-1 gap-2'
   }
 
-  return 'grid w-full max-w-[360px] grid-cols-2 gap-2'
+  return 'grid w-full max-w-full grid-cols-2 gap-2'
 }
 
 function getImageSlotClassName(slotCount: number) {
@@ -352,6 +343,7 @@ function getImageSlotClassName(slotCount: number) {
 
 function formatCreatedAt(timestamp: number) {
   return new Intl.DateTimeFormat('zh-CN', {
+    year: 'numeric',
     month: '2-digit',
     day: '2-digit',
     hour: '2-digit',

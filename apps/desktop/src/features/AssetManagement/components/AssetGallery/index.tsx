@@ -24,7 +24,9 @@ const dateGroupWithYearFormatter = new Intl.DateTimeFormat('zh-CN', {
   weekday: 'short',
   year: 'numeric',
 })
-const MIN_TILE_WIDTH = 156
+const TILE_HEIGHT = 134
+const MIN_TILE_WIDTH = 88
+const MAX_TILE_WIDTH = 240
 const GRID_GAP = 12
 const GROUP_HEADER_HEIGHT = 32
 const GROUP_TOP_GAP = 28
@@ -50,11 +52,16 @@ type GalleryRow =
       type: 'group-header'
     }
   | {
-      assets: AssetImage[]
       height: number
+      items: AssetRowItem[]
       key: string
       type: 'asset-row'
     }
+
+type AssetRowItem = {
+  asset: AssetImage
+  width: number
+}
 
 export const AssetGallery = memo(function AssetGallery({
   assets,
@@ -77,7 +84,7 @@ export const AssetGallery = memo(function AssetGallery({
   }), [assetGroups, assets, containerWidth, viewMode])
   const rowVirtualizer = useVirtualizer({
     count: layout.rows.length,
-    estimateSize: (index) => layout.rows[index]?.height ?? layout.tileSize,
+    estimateSize: (index) => layout.rows[index]?.height ?? TILE_HEIGHT,
     getItemKey: (index) => layout.rows[index]?.key ?? index,
     getScrollElement: () => scrollContainerRef.current,
     overscan: 7,
@@ -112,9 +119,7 @@ export const AssetGallery = memo(function AssetGallery({
               </div>
             ) : (
               <AssetGrid
-                assets={row.assets}
-                columns={layout.columns}
-                tileSize={layout.tileSize}
+                items={row.items}
                 onCopyPrompt={onCopyPrompt}
                 onOpen={onOpen}
                 onOpenImageLocation={onOpenImageLocation}
@@ -130,30 +135,22 @@ export const AssetGallery = memo(function AssetGallery({
 })
 
 const AssetGrid = memo(function AssetGrid({
-  assets,
+  items,
   onCopyPrompt,
   onOpen,
   onOpenImageLocation,
   onReuse,
   onToggleFavorite,
-  columns,
-  tileSize,
-}: Omit<AssetGalleryProps, 'scrollContainerRef' | 'viewMode'> & {
-  columns: number
-  tileSize: number
+}: Pick<AssetGalleryProps, 'onCopyPrompt' | 'onOpen' | 'onOpenImageLocation' | 'onReuse' | 'onToggleFavorite'> & {
+  items: AssetRowItem[]
 }) {
   return (
-    <div
-      className="grid gap-3"
-      style={{
-        gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
-      }}
-    >
-      {assets.map((asset) => (
+    <div className="flex min-w-0 gap-3">
+      {items.map(({ asset, width }) => (
         <AssetAlbumTile
           asset={asset}
           key={asset.imageId}
-          size={tileSize}
+          width={width}
           onCopyPrompt={onCopyPrompt}
           onOpenImageLocation={onOpenImageLocation}
           onOpen={onOpen}
@@ -172,7 +169,7 @@ const AssetAlbumTile = memo(function AssetAlbumTile({
   onOpen,
   onReuse,
   onToggleFavorite,
-  size,
+  width,
 }: {
   asset: AssetImage
   onCopyPrompt: (asset: AssetImage) => void | Promise<void>
@@ -180,14 +177,13 @@ const AssetAlbumTile = memo(function AssetAlbumTile({
   onOpen: (asset: AssetImage) => void
   onReuse: (asset: AssetImage) => void
   onToggleFavorite: (asset: AssetImage) => void | Promise<void>
-  size: number
+  width: number
 }) {
   return (
-    <article className="group relative overflow-hidden rounded-lg bg-background-subtle" style={{ height: size }}>
-      <button className="block aspect-square w-full cursor-pointer overflow-hidden" type="button" onClick={() => onOpen(asset)}>
+    <article className="group relative shrink-0 overflow-hidden rounded-lg bg-background-subtle" style={{ height: TILE_HEIGHT, width }}>
+      <button className="block size-full cursor-pointer overflow-hidden" type="button" onClick={() => onOpen(asset)}>
         <img alt={asset.prompt} className="size-full object-cover" decoding="async" draggable={false} loading="lazy" src={asset.thumbnailUrl} />
       </button>
-      <div className="pointer-events-none absolute inset-0 rounded-lg ring-1 ring-black/5 transition-colors duration-100 group-hover:ring-black/10" />
       <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 bg-gradient-to-t from-black/45 via-black/10 to-transparent p-2 opacity-0 transition-opacity duration-100 ease-out group-hover:opacity-100">
         <div className="min-w-0 text-white">
           <p className="truncate text-base font-medium leading-4">{asset.fileName}</p>
@@ -279,14 +275,12 @@ function createGalleryLayout({
   viewMode: AssetViewMode
 }) {
   const width = Math.max(containerWidth, MIN_TILE_WIDTH)
-  const columns = Math.max(1, Math.floor((width + GRID_GAP) / (MIN_TILE_WIDTH + GRID_GAP)))
-  const tileSize = Math.floor((width - (columns - 1) * GRID_GAP) / columns)
   const rows: GalleryRow[] = []
 
   if (viewMode === 'flat') {
-    appendAssetRows(rows, assets, columns, tileSize)
+    appendAssetRows(rows, assets, width)
 
-    return { columns, rows, tileSize }
+    return { rows }
   }
 
   assetGroups.forEach((group, index) => {
@@ -298,23 +292,68 @@ function createGalleryLayout({
       topGap: index === 0 ? 0 : GROUP_TOP_GAP,
       type: 'group-header',
     })
-    appendAssetRows(rows, group.assets, columns, tileSize, group.key)
+    appendAssetRows(rows, group.assets, width, group.key)
   })
 
-  return { columns, rows, tileSize }
+  return { rows }
 }
 
-function appendAssetRows(rows: GalleryRow[], assets: AssetImage[], columns: number, tileSize: number, groupKey = 'flat') {
-  for (let index = 0; index < assets.length; index += columns) {
-    const rowAssets = assets.slice(index, index + columns)
+function appendAssetRows(rows: GalleryRow[], assets: AssetImage[], containerWidth: number, groupKey = 'flat') {
+  let rowItems: AssetRowItem[] = []
+  let rowWidth = 0
+  let rowIndex = 0
 
+  assets.forEach((asset) => {
+    const itemWidth = getAssetTileWidth(asset)
+    const nextWidth = rowItems.length === 0 ? itemWidth : rowWidth + GRID_GAP + itemWidth
+
+    if (rowItems.length > 0 && nextWidth > containerWidth) {
+      rows.push({
+        height: TILE_HEIGHT + GRID_GAP,
+        items: rowItems,
+        key: `assets:${groupKey}:${rowIndex}`,
+        type: 'asset-row',
+      })
+      rowIndex += 1
+      rowItems = []
+      rowWidth = 0
+    }
+
+    rowItems.push({ asset, width: itemWidth })
+    rowWidth = rowItems.length === 1 ? itemWidth : rowWidth + GRID_GAP + itemWidth
+  })
+
+  if (rowItems.length > 0) {
     rows.push({
-      assets: rowAssets,
-      height: tileSize + GRID_GAP,
-      key: `assets:${groupKey}:${index}`,
+      height: TILE_HEIGHT + GRID_GAP,
+      items: rowItems,
+      key: `assets:${groupKey}:${rowIndex}`,
       type: 'asset-row',
     })
   }
+}
+
+function getAssetTileWidth(asset: AssetImage) {
+  const aspectRatio = getAssetAspectRatio(asset)
+  const width = Math.round(TILE_HEIGHT * aspectRatio)
+
+  return Math.min(MAX_TILE_WIDTH, Math.max(MIN_TILE_WIDTH, width))
+}
+
+function getAssetAspectRatio(asset: AssetImage) {
+  if (asset.width && asset.height) {
+    return asset.width / asset.height
+  }
+
+  if (asset.aspectRatio) {
+    const [width, height] = String(asset.aspectRatio).split(':').map(Number)
+
+    if (Number.isFinite(width) && Number.isFinite(height) && height > 0) {
+      return width / height
+    }
+  }
+
+  return 1
 }
 
 function groupAssetsByDate(assets: AssetImage[]) {

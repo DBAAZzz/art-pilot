@@ -127,11 +127,11 @@ export function GenerationForm({
 
   return (
     <>
-      <div className="flex w-full flex-col rounded-xl border border-border bg-fill">
+      <div className="flex min-w-0 w-full max-w-full flex-col rounded-xl border border-border bg-fill">
         <textarea
           ref={textareaRef}
           className={cn(
-            'art-pilot-hidden-scrollbar h-[150px] w-full shrink-0 resize-none rounded-xl bg-transparent p-3 pb-2 text-base text-text-strong outline-none placeholder:text-text-muted',
+            'art-pilot-hidden-scrollbar h-[220px] min-w-0 w-full shrink-0 resize-none rounded-xl bg-transparent p-3 pb-2 text-base text-text-strong outline-none placeholder:text-text-muted',
             isReadOnly && 'cursor-default opacity-80',
           )}
           placeholder="例如：清晨的湖边山谷，薄雾、柔和光线、远处有雪山，画面安静干净..."
@@ -148,11 +148,11 @@ export function GenerationForm({
 
         {references.length > 0 ? (
           <div className="shrink-0 px-3">
-            <div className="flex flex-col gap-2 py-2">
+            <div className="art-pilot-hidden-scrollbar flex min-w-0 gap-2 overflow-x-auto py-2">
               {references.map((reference, index) => (
                 <div
                   className={cn(
-                    'flex h-14 min-w-0 shrink-0 items-center gap-2 rounded-lg bg-fill-hover p-2 pr-1 text-text-strong transition-colors hover:bg-fill-active',
+                    'relative aspect-[4/3] w-[30%] min-w-[132px] shrink-0 overflow-hidden rounded-lg bg-fill-hover text-text-strong transition-colors hover:bg-fill-active',
                     reference.imageUrl ? 'cursor-pointer' : 'cursor-default',
                   )}
                   key={reference.id}
@@ -169,23 +169,20 @@ export function GenerationForm({
                     openReferencePreview(reference, index)
                   }}
                 >
-                  <div className="size-10 shrink-0 overflow-hidden rounded-lg bg-background-subtle">
-                    {reference.imageUrl ? (
-                      <img
-                        alt={`参考图 ${reference.name ?? reference.path}`}
-                        className="size-full object-cover transition-transform hover:scale-[1.03]"
-                        src={reference.imageUrl}
-                      />
-                    ) : (
-                      <div className="flex size-full items-center justify-center text-text-muted">
-                        <FileImage className="size-5" strokeWidth={1.8} />
-                      </div>
-                    )}
-                  </div>
-                  <span className="min-w-0 flex-1 truncate text-base leading-4 text-text-muted">{reference.name ?? reference.path}</span>
+                  {reference.imageUrl ? (
+                    <img
+                      alt={`参考图 ${reference.name ?? reference.path}`}
+                      className="size-full object-cover transition-transform hover:scale-[1.03]"
+                      src={reference.imageUrl}
+                    />
+                  ) : (
+                    <div className="flex size-full items-center justify-center text-text-muted">
+                      <FileImage className="size-5" strokeWidth={1.8} />
+                    </div>
+                  )}
                   <button
                     aria-label={`移除参考图 ${reference.name ?? reference.path}`}
-                    className="flex size-5 shrink-0 cursor-pointer items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-fill-active hover:text-text-strong"
+                    className="absolute right-1 top-1 flex size-6 cursor-pointer items-center justify-center rounded-lg bg-background-solid/80 text-text-muted transition-colors hover:bg-background-solid hover:text-text-strong"
                     type="button"
                     onClick={(event) => {
                       event.stopPropagation()
@@ -201,28 +198,28 @@ export function GenerationForm({
         ) : null}
 
         <div className="flex shrink-0 items-center justify-end gap-2 px-3 py-1">
-        <button
-          aria-label="添加参考图"
-          className="flex size-8 cursor-pointer items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-fill-hover hover:text-text-strong"
-          type="button"
-          onClick={() => void onSelectReferences()}
-        >
-          <Image className="size-5" strokeWidth={1.8} />
-        </button>
-        <button
-          aria-label="发送生成任务"
-          className={cn(
-            'flex size-6 items-center justify-center rounded-full transition-colors',
-            isGenerateDisabled
-              ? 'cursor-default bg-fill-active text-text-muted'
-              : 'cursor-pointer bg-text-strong text-background-solid hover:bg-background-solid-hover hover:text-text-strong',
-          )}
-          disabled={isGenerateDisabled}
-          type="button"
-          onClick={() => void onGenerate()}
-        >
-          <ArrowUp className="size-4" strokeWidth={2} />
-        </button>
+          <button
+            aria-label="添加参考图"
+            className="flex size-8 cursor-pointer items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-fill-hover hover:text-text-strong"
+            type="button"
+            onClick={() => void onSelectReferences()}
+          >
+            <Image className="size-5" strokeWidth={1.8} />
+          </button>
+          <button
+            aria-label="发送生成任务"
+            className={cn(
+              'flex size-6 items-center justify-center rounded-full transition-colors',
+              isGenerateDisabled
+                ? 'cursor-default bg-fill-active text-text-muted'
+                : 'cursor-pointer bg-text-strong text-background-solid hover:bg-background-solid-hover hover:text-text-strong',
+            )}
+            disabled={isGenerateDisabled}
+            type="button"
+            onClick={() => void onGenerate()}
+          >
+            <ArrowUp className="size-4" strokeWidth={2} />
+          </button>
         </div>
       </div>
 

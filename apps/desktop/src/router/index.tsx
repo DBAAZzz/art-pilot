@@ -49,8 +49,14 @@ export const router = createHashRouter([
           },
         },
       },
+    ],
+  },
+  {
+    path: '/assets/:imageId',
+    element: <AppLayout />,
+    children: [
       {
-        path: 'assets/:imageId',
+        index: true,
         element: <AssetDetailPage />,
         handle: {
           meta: {

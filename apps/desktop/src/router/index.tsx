@@ -67,15 +67,24 @@ export const router = createHashRouter([
     ],
   },
   {
-    path: '/prompts/new',
+    path: '/prompts',
     element: <AppLayout />,
     children: [
       {
-        index: true,
+        path: 'new',
         element: <PromptTemplateEditorPage />,
         handle: {
           meta: {
             title: '新建提示词模板',
+          },
+        },
+      },
+      {
+        path: ':templateId/edit',
+        element: <PromptTemplateEditorPage />,
+        handle: {
+          meta: {
+            title: '编辑提示词模板',
           },
         },
       },

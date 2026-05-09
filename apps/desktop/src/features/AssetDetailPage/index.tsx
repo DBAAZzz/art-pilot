@@ -10,7 +10,7 @@ import {
 } from 'lucide-react'
 import type { AssetImage, AssetImageDetail } from '@art-pilot/shared'
 import type React from 'react'
-import { useCallback, useEffect, useMemo } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
 
 import { Button } from '@/components/Button'
@@ -40,6 +40,9 @@ export function AssetDetailPage() {
     initialData: null as AssetImageDetail | null,
     initialLoading: true,
   })
+  const [templatePreviewAdding, setTemplatePreviewAdding] = useState(false)
+  const [templatePreviewAdded, setTemplatePreviewAdded] = useState(false)
+  const [templatePreviewError, setTemplatePreviewError] = useState<string | null>(null)
 
   const currentSiblingIndex = useMemo(() => {
     if (!asset) {
@@ -134,6 +137,12 @@ export function AssetDetailPage() {
   }, [fetchAssetDetail, imageId, setAsset, setError, setLoading])
 
   useEffect(() => {
+    setTemplatePreviewAdded(false)
+    setTemplatePreviewAdding(false)
+    setTemplatePreviewError(null)
+  }, [imageId])
+
+  useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
       if (imagePreview.isOpen || isEditableTarget(event.target)) {
         return
@@ -202,6 +211,26 @@ export function AssetDetailPage() {
     })
   }
 
+  async function addAssetToTemplatePreview() {
+    const templateId = asset?.promptTemplateUse?.templateId ?? asset?.generationParams?.promptTemplateId
+
+    if (!asset || !templateId) {
+      return
+    }
+
+    setTemplatePreviewAdding(true)
+    setTemplatePreviewError(null)
+
+    try {
+      await window.api.addAssetToPromptTemplatePreview(templateId, asset.imageId)
+      setTemplatePreviewAdded(true)
+    } catch (previewError) {
+      setTemplatePreviewError(previewError instanceof Error ? previewError.message : '添加模板预览图失败')
+    } finally {
+      setTemplatePreviewAdding(false)
+    }
+  }
+
   if (loading && !asset) {
     return (
       <section className="col-span-2 h-full min-h-0 bg-background-solid">
@@ -219,6 +248,7 @@ export function AssetDetailPage() {
   }
 
   const mainPreviewItem = previewItems[0]
+  const promptTemplate = getPromptTemplateSummary(asset)
 
   return (
     <section className="col-span-2 grid h-full min-h-0 grid-cols-[minmax(0,1fr)_380px] overflow-hidden bg-background-solid">
@@ -254,10 +284,16 @@ export function AssetDetailPage() {
       </div>
 
       <aside className="art-pilot-scrollbar min-h-0 space-y-3 overflow-y-auto bg-background-subtle px-4 py-3">
-        <div className="rounded-lg bg-fill p-3">
-          <h1 className="truncate text-xl font-semibold text-text-strong" title={asset.fileName}>{asset.fileName}</h1>
-          <p className="mt-1 text-base text-text-muted">{formatFullDate(asset.createdAt)}</p>
-        </div>
+        {promptTemplate ? (
+          <PromptTemplateSection
+            added={templatePreviewAdded}
+            adding={templatePreviewAdding}
+            error={templatePreviewError}
+            template={promptTemplate}
+            onAddPreviewImage={() => void addAssetToTemplatePreview()}
+            onEditTemplate={() => void navigate(`/prompts/${encodeURIComponent(promptTemplate.templateId)}/edit`)}
+          />
+        ) : null}
 
         <DetailSection
           action={(
@@ -292,6 +328,8 @@ export function AssetDetailPage() {
 
         <DetailSection title="图片信息">
           <div className="space-y-2">
+            <DetailRow label="名称" value={asset.fileName} />
+            <DetailRow label="创作时间" value={formatFullDate(asset.createdAt)} />
             <DetailRow label="尺寸" value={formatDimensions(asset)} />
             <OptionalDetailRow label="比例" value={asset.aspectRatio} />
             <OptionalDetailRow label="大小" value={asset.fileSize ? formatBytes(asset.fileSize) : undefined} />
@@ -336,6 +374,54 @@ export function AssetDetailPage() {
         />
       ) : null}
     </section>
+  )
+}
+
+type PromptTemplateSummary = {
+  templateId: string
+  templateTitle?: string
+  valueCount: number
+  imageBindingCount: number
+}
+
+function PromptTemplateSection({
+  added,
+  adding,
+  error,
+  template,
+  onAddPreviewImage,
+  onEditTemplate,
+}: {
+  added: boolean
+  adding: boolean
+  error: string | null
+  template: PromptTemplateSummary
+  onAddPreviewImage: () => void
+  onEditTemplate: () => void
+}) {
+  return (
+    <DetailSection
+      action={(
+        <div className="flex items-center gap-1.5">
+          <Button className="h-7 px-2.5" variant="ghost" onClick={onEditTemplate}>
+            编辑
+          </Button>
+          <Button className="h-7 gap-1.5 px-2.5" disabled={adding || added} variant="ghost" onClick={onAddPreviewImage}>
+            {adding ? <Loader2 className="size-3.5 animate-spin" strokeWidth={1.8} /> : <ImageIcon className="size-3.5" strokeWidth={1.8} />}
+            {added ? '已添加' : '设为预览'}
+          </Button>
+        </div>
+      )}
+      title="提示词模板"
+    >
+      <div className="space-y-2">
+        <DetailRow label="模板" value={template.templateTitle ?? '未命名模板'} />
+        <CopyableDetailRow label="模板 ID" value={template.templateId} />
+        <DetailRow label="文本变量" value={`${template.valueCount} 项`} />
+        <DetailRow label="图片绑定" value={`${template.imageBindingCount} 项`} />
+        {error ? <p className="text-base text-text-error">{error}</p> : null}
+      </div>
+    </DetailSection>
   )
 }
 
@@ -555,4 +641,19 @@ function formatDimensions(asset: Pick<AssetImage, 'width' | 'height'>) {
   }
 
   return `${asset.width} x ${asset.height}`
+}
+
+function getPromptTemplateSummary(asset: AssetImageDetail): PromptTemplateSummary | null {
+  const templateId = asset.promptTemplateUse?.templateId ?? asset.generationParams?.promptTemplateId
+
+  if (!templateId) {
+    return null
+  }
+
+  return {
+    templateId,
+    templateTitle: asset.promptTemplateUse?.templateTitle ?? asset.generationParams?.promptTemplateTitle ?? undefined,
+    valueCount: asset.promptTemplateUse?.values.length ?? 0,
+    imageBindingCount: asset.promptTemplateUse?.imageBindings.length ?? 0,
+  }
 }

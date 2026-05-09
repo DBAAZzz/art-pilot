@@ -1,7 +1,7 @@
 import { Plus, X } from 'lucide-react'
 import type React from 'react'
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router'
+import { useNavigate, useParams } from 'react-router'
 import {
   extractPromptVariableKeys,
   findUndefinedPromptVariables,
@@ -29,10 +29,12 @@ const PROMPT_TEMPLATE_EDITOR_FORM_ID = 'prompt-template-editor-form'
 
 export function PromptTemplateEditorPage() {
   const navigate = useNavigate()
+  const { templateId } = useParams()
   const { setHeaderOptions } = useAppHeader()
   const [fillUrl, setFillUrl] = useState('')
   const [sourceDraft, setSourceDraft] = useState<PromptImportDraft | null>(null)
   const fillState = useLoadingState()
+  const loadState = useLoadingState()
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [content, setContent] = useState('')
@@ -73,7 +75,8 @@ export function PromptTemplateEditorPage() {
 
     return [...suggestionsByKey.values()]
   }, [detectedKeys, variables])
-  const canSave = title.trim().length > 0 && content.trim().length > 0 && undefinedKeys.length === 0 && !saveState.loading
+  const isEditing = Boolean(templateId)
+  const canSave = title.trim().length > 0 && content.trim().length > 0 && undefinedKeys.length === 0 && !saveState.loading && !loadState.loading
 
   useEffect(() => {
     setHeaderOptions({
@@ -87,13 +90,47 @@ export function PromptTemplateEditorPage() {
           type="submit"
         >
           <Plus className="size-3.5" strokeWidth={1.8} />
-          {saveState.loading ? '保存中...' : '保存模板'}
+          {saveState.loading ? '保存中...' : isEditing ? '保存修改' : '保存模板'}
         </Button>
       ),
     })
 
     return () => setHeaderOptions({})
-  }, [canSave, navigate, saveState.loading, setHeaderOptions])
+  }, [canSave, isEditing, navigate, saveState.loading, setHeaderOptions])
+
+  useEffect(() => {
+    if (!templateId) {
+      return
+    }
+
+    void loadTemplate(templateId)
+  }, [templateId])
+
+  async function loadTemplate(targetTemplateId: string) {
+    loadState.startLoading()
+    saveState.setError(null)
+
+    try {
+      const template = await window.api.getPromptTemplateById(targetTemplateId)
+
+      if (!template) {
+        throw new Error('提示词模板不存在')
+      }
+
+      setSourceDraft(template)
+      setTitle(template.title)
+      setDescription(template.description ?? '')
+      setContent(template.content)
+      setCategories(template.categories.join(', '))
+      setPreviewImages(template.previewImages)
+      setVariables(template.variables)
+      setFillUrl(template.sourceUrl ?? '')
+    } catch (error) {
+      loadState.failLoading(error)
+    } finally {
+      loadState.stopLoading()
+    }
+  }
 
   async function fillFromUrl() {
     fillState.startLoading()
@@ -171,7 +208,7 @@ export function PromptTemplateEditorPage() {
     saveState.startLoading()
 
     try {
-      await window.api.savePromptTemplate({
+      const draft = {
         title,
         description,
         content,
@@ -183,7 +220,16 @@ export function PromptTemplateEditorPage() {
         categories: parseCategoryInput(categories),
         variables,
         previewImages,
-      })
+      }
+
+      if (templateId) {
+        await window.api.updatePromptTemplate({
+          id: templateId,
+          ...draft,
+        })
+      } else {
+        await window.api.savePromptTemplate(draft)
+      }
       void navigate('/prompts')
     } catch (error) {
       saveState.failLoading(error)
@@ -200,6 +246,8 @@ export function PromptTemplateEditorPage() {
       onSubmit={submitForm}
     >
       <div className="art-pilot-scrollbar min-h-0 flex-1 space-y-6 overflow-y-auto px-6 pb-6">
+        {loadState.loading ? <div className="text-base text-text-muted">正在读取模板...</div> : null}
+        {loadState.error ? <div className="text-base text-text-error">{loadState.error}</div> : null}
         <div className="bg-background-subtle px-4 py-3">
           <label className="block">
             <span className="mb-1.5 block text-base font-semibold text-text-strong">从链接填充</span>

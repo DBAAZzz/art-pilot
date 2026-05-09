@@ -1,5 +1,5 @@
-import { Grid3X3, ImageIcon, Loader2, RefreshCw, Search, SlidersHorizontal, StretchHorizontal } from 'lucide-react'
-import type { AssetImage, AssetStats } from '@art-pilot/shared'
+import { Grid3X3, ImageIcon, Loader2, RefreshCw, Search, StretchHorizontal } from 'lucide-react'
+import type { AssetImage } from '@art-pilot/shared'
 import type React from 'react'
 import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router'
@@ -16,7 +16,6 @@ export function AssetManagementPage() {
   const navigate = useNavigate()
   const scrollContainerRef = useRef<HTMLDivElement | null>(null)
   const assets = useAssetManagementStore((state) => state.assets)
-  const stats = useAssetManagementStore((state) => state.stats)
   const search = useAssetManagementStore((state) => state.search)
   const favoriteOnly = useAssetManagementStore((state) => state.favoriteOnly)
   const viewMode = useAssetManagementStore((state) => state.viewMode)
@@ -88,68 +87,62 @@ export function AssetManagementPage() {
 
   return (
     <section className="col-span-2 flex min-h-0 flex-col overflow-hidden bg-background-solid">
-      <header className="shrink-0 bg-background-solid/95 px-5 py-3 backdrop-blur">
-        <div className="flex flex-col gap-3">
-          <p className="text-base text-text-muted">{formatStats(stats, total)}</p>
-          <div className="flex items-center gap-3">
-            <div className="flex h-8 shrink-0 rounded-lg bg-background-subtle p-0.5">
-              <button
-                className={cn(
-                  'h-7 cursor-pointer rounded-md px-3 text-base font-medium transition-colors',
-                  !favoriteOnly ? 'bg-background-solid text-text-strong' : 'text-text-muted hover:text-text-strong',
-                )}
-                type="button"
-                onClick={() => setFavoriteOnly(false)}
-              >
-                全部
-              </button>
-              <button
-                className={cn(
-                  'h-7 cursor-pointer rounded-md px-3 text-base font-medium transition-colors',
-                  favoriteOnly ? 'bg-background-solid text-text-strong' : 'text-text-muted hover:text-text-strong',
-                )}
-                type="button"
-                onClick={() => setFavoriteOnly(true)}
-              >
-                已收藏
-              </button>
-            </div>
-            <div className="flex h-8 shrink-0 rounded-lg bg-background-subtle p-0.5">
-              <ViewModeButton
-                icon={<StretchHorizontal className="size-4" strokeWidth={1.8} />}
-                isActive={viewMode === 'date'}
-                label="按日期"
-                onClick={() => setViewMode('date')}
-              />
-              <ViewModeButton
-                icon={<Grid3X3 className="size-4" strokeWidth={1.8} />}
-                isActive={viewMode === 'flat'}
-                label="平铺"
-                onClick={() => setViewMode('flat')}
-              />
-            </div>
-            <div className="relative ml-auto w-[min(420px,42vw)] min-w-[220px]">
-              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-text-muted" strokeWidth={1.8} />
-              <Input
-                className="w-full border-transparent bg-background-subtle pl-9"
-                placeholder="搜索 prompt、文件名或任务 ID"
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-              />
-            </div>
-            <div className="inline-flex h-8 shrink-0 items-center gap-1 rounded-lg bg-background-subtle px-2 text-base text-text-muted">
-              <SlidersHorizontal className="size-4" strokeWidth={1.8} />
-              {assets.length}/{total}
-            </div>
+      <header className="shrink-0 bg-background-solid/95 px-5 pb-4 pt-5 backdrop-blur">
+        <div className="flex items-center gap-3">
+          <div className="flex h-8 shrink-0 rounded-lg bg-background-subtle p-0.5">
+            <ViewModeButton
+              icon={<StretchHorizontal className="size-4" strokeWidth={1.8} />}
+              isActive={viewMode === 'date'}
+              label="按日期"
+              onClick={() => setViewMode('date')}
+            />
+            <ViewModeButton
+              icon={<Grid3X3 className="size-4" strokeWidth={1.8} />}
+              isActive={viewMode === 'flat'}
+              label="平铺"
+              onClick={() => setViewMode('flat')}
+            />
+          </div>
+          <div className="flex h-8 shrink-0 rounded-lg bg-background-subtle p-0.5">
             <button
-              aria-label="重新加载资产"
-              className="flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-background-subtle hover:text-text-strong"
+              className={cn(
+                'h-7 cursor-pointer rounded-md px-3 text-base font-medium transition-colors',
+                !favoriteOnly ? 'bg-background-solid text-text-strong' : 'text-text-muted hover:text-text-strong',
+              )}
               type="button"
-              onClick={() => void refreshAssets()}
+              onClick={() => setFavoriteOnly(false)}
             >
-              <RefreshCw className="size-4" strokeWidth={1.8} />
+              全部
+            </button>
+            <button
+              className={cn(
+                'h-7 cursor-pointer rounded-md px-3 text-base font-medium transition-colors',
+                favoriteOnly ? 'bg-background-solid text-text-strong' : 'text-text-muted hover:text-text-strong',
+              )}
+              type="button"
+              onClick={() => setFavoriteOnly(true)}
+            >
+              已收藏
             </button>
           </div>
+          <div className="min-w-0 flex-1" />
+          <div className="relative w-[min(320px,32vw)] min-w-[220px]">
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-text-muted" strokeWidth={1.8} />
+            <Input
+              className="w-full border-transparent bg-background-subtle pl-9"
+              placeholder="搜索资产"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+            />
+          </div>
+          <button
+            aria-label="重新加载资产"
+            className="flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-background-subtle hover:text-text-strong"
+            type="button"
+            onClick={() => void refreshAssets()}
+          >
+            <RefreshCw className="size-4" strokeWidth={1.8} />
+          </button>
         </div>
       </header>
 
@@ -227,24 +220,4 @@ function StateMessage({ description, icon, title }: { description?: string; icon
       </div>
     </div>
   )
-}
-
-function formatStats(stats: AssetStats | null, total: number) {
-  if (!stats) {
-    return `${total} 张图片`
-  }
-
-  return `共 ${stats.imageCount} 张图片 · 占用 ${formatBytes(stats.totalBytes)}`
-}
-
-function formatBytes(bytes: number) {
-  if (bytes <= 0) {
-    return '0 B'
-  }
-
-  const units = ['B', 'KB', 'MB', 'GB']
-  const unitIndex = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1)
-  const value = bytes / (1024 ** unitIndex)
-
-  return `${value.toFixed(value >= 10 || unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`
 }

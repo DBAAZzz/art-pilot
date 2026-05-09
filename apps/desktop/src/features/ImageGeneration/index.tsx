@@ -43,10 +43,9 @@ const aspectRatioSizeMap: Record<ImageGenerationAspectRatio, ImageGenerationSize
   '9:16': '1024x1536',
 }
 const RECENT_TASKS_WIDTH_STORAGE_KEY = 'art-pilot:image-generation-recent-tasks-width'
-const DEFAULT_RECENT_TASKS_WIDTH = 420
-const MIN_RECENT_TASKS_WIDTH = 340
-const MAX_RECENT_TASKS_WIDTH = 560
-const MIN_FORM_PANEL_WIDTH = 520
+const DEFAULT_RECENT_TASKS_WIDTH = 360
+const MIN_RECENT_TASKS_WIDTH = 280
+const MAX_RECENT_TASKS_WIDTH = 360
 const PANEL_RESIZER_WIDTH = 8
 
 export function ImageGenerationPage() {
@@ -133,6 +132,23 @@ export function ImageGenerationPage() {
   useEffect(() => {
     window.localStorage.setItem(RECENT_TASKS_WIDTH_STORAGE_KEY, String(recentTasksWidth))
   }, [recentTasksWidth])
+
+  useEffect(() => {
+    const container = panelContainerRef.current
+
+    if (!container) {
+      return
+    }
+
+    const resizeObserver = new ResizeObserver(() => {
+      setRecentTasksWidth((currentWidth) => clampRecentTasksWidth(currentWidth, container))
+    })
+
+    resizeObserver.observe(container)
+    setRecentTasksWidth((currentWidth) => clampRecentTasksWidth(currentWidth, container))
+
+    return () => resizeObserver.disconnect()
+  }, [])
 
   useEffect(() => {
     void loadRecentTasks('replace')
@@ -515,10 +531,10 @@ export function ImageGenerationPage() {
   return (
     <div
       ref={panelContainerRef}
-      className="col-span-2 grid min-h-0"
-      style={{ gridTemplateColumns: `minmax(${MIN_FORM_PANEL_WIDTH}px, 1fr) ${PANEL_RESIZER_WIDTH}px ${recentTasksWidth}px` }}
+      className="col-span-2 grid min-h-0 min-w-0 overflow-hidden"
+      style={{ gridTemplateColumns: `minmax(0, 1fr) ${PANEL_RESIZER_WIDTH}px ${recentTasksWidth}px` }}
     >
-      <section className="min-h-0 overflow-y-auto rounded-lg bg-background-solid px-6 pb-4 pt-10">
+      <section className="min-h-0 min-w-0 overflow-y-auto rounded-lg bg-background-solid px-6 pb-4 pt-10">
         <div className="mx-auto flex w-full max-w-[760px] flex-col items-stretch">
           <header className="mb-5 text-left">
             <h1 className="text-xl font-semibold text-text-strong">该做些什么</h1>
@@ -641,7 +657,7 @@ function readStoredRecentTasksWidth() {
 
 function clampRecentTasksWidth(width: number, container: HTMLElement | null = null) {
   const containerMaxWidth = container
-    ? container.clientWidth - MIN_FORM_PANEL_WIDTH - PANEL_RESIZER_WIDTH
+    ? container.clientWidth - PANEL_RESIZER_WIDTH
     : MAX_RECENT_TASKS_WIDTH
   const maxWidth = Math.max(MIN_RECENT_TASKS_WIDTH, Math.min(MAX_RECENT_TASKS_WIDTH, containerMaxWidth))
 

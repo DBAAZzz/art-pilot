@@ -93,3 +93,7 @@ export type PromptRecord = PromptTemplate
 export type PromptImportDraft = PromptTemplateDraft
 
 export type SavePromptRequest = PromptTemplateDraft
+
+export type UpdatePromptTemplateRequest = PromptTemplateDraft & {
+  id: string
+}

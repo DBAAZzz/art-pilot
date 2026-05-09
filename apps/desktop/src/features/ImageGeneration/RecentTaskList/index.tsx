@@ -22,7 +22,7 @@ export function RecentTaskList({
   }
 
   return (
-    <aside className="flex min-h-0 w-full flex-col rounded-r-lg bg-fill-hover px-3 py-4">
+    <aside className="flex min-h-0 min-w-0 w-full flex-col overflow-hidden rounded-r-lg bg-fill-hover px-3 py-4">
       <div className="mb-3 flex items-center justify-center">
         <h2 className="text-base font-semibold text-text-strong">最近任务</h2>
       </div>

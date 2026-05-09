@@ -15,6 +15,7 @@ import type {
   ResolvedPromptTemplate,
   ResolvePromptTemplateRequest,
   SavePromptRequest,
+  UpdatePromptTemplateRequest,
 } from './prompt'
 import type { AppSettings, UpdateAppSettingsRequest } from './settings'
 
@@ -48,9 +49,11 @@ export interface ElectronApi {
   openExternalUrl: (url: string) => Promise<void>
   fillPromptTemplateFromUrl: (url: string) => Promise<PromptTemplateDraft>
   savePromptTemplate: (draft: PromptTemplateDraft) => Promise<PromptTemplate>
+  updatePromptTemplate: (request: UpdatePromptTemplateRequest) => Promise<PromptTemplate>
   listPromptTemplates: () => Promise<PromptTemplate[]>
   getPromptTemplateById: (templateId: string) => Promise<PromptTemplate | null>
   resolvePromptTemplate: (request: ResolvePromptTemplateRequest) => Promise<ResolvedPromptTemplate>
+  addAssetToPromptTemplatePreview: (templateId: string, imageId: string) => Promise<PromptTemplate>
   previewPromptImport: (url: string) => Promise<PromptImportDraft>
   savePrompt: (request: SavePromptRequest) => Promise<PromptRecord>
   listPrompts: () => Promise<PromptRecord[]>

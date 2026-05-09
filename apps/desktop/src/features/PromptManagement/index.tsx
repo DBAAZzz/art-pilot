@@ -1,20 +1,10 @@
 import {
   Check,
-  ChevronDown,
-  ChevronUp,
   Copy,
-  ExternalLink,
-  FileText,
-  ImageOff,
-  Images,
-  LayoutGrid,
-  List,
   MessageSquareText,
   Plus,
   Search,
-  SlidersHorizontal,
 } from 'lucide-react'
-import type React from 'react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { LucideIcon } from 'lucide-react'
 import type { PromptRecord } from '@art-pilot/shared'
@@ -27,15 +17,7 @@ import { useApiRequest } from '@/hooks/useApiRequest'
 import { useImagePreview } from '@/hooks/useImagePreview'
 import { getErrorMessage } from '@/hooks/useLoadingState'
 import { cn } from '@/lib/utils'
-
-type PromptViewMode = 'list' | 'gallery'
-
-type GalleryFilters = {
-  category: string | null
-  sourceSite: PromptRecord['sourceSite'] | 'all'
-  language: string | 'all'
-  imageState: 'all' | 'withImage'
-}
+import { PromptDetail } from './components/PromptDetail'
 
 type PromptPreviewListItem = {
   imageUrl: string
@@ -44,20 +26,11 @@ type PromptPreviewListItem = {
   promptTitle: string
 }
 
-const defaultGalleryFilters: GalleryFilters = {
-  category: null,
-  sourceSite: 'all',
-  language: 'all',
-  imageState: 'all',
-}
-
 export function PromptManagementPage() {
   const navigate = useNavigate()
   const [selectedPromptId, setSelectedPromptId] = useState<string | null>(null)
   const [selectedImageIndex, setSelectedImageIndex] = useState(0)
   const [query, setQuery] = useState('')
-  const [viewMode, setViewMode] = useState<PromptViewMode>('list')
-  const [galleryFilters, setGalleryFilters] = useState<GalleryFilters>(defaultGalleryFilters)
   const [copiedPromptId, setCopiedPromptId] = useState<string | null>(null)
   const listPromptTemplates = useCallback(() => window.api.listPromptTemplates(), [])
   const {
@@ -86,14 +59,10 @@ export function PromptManagementPage() {
       ].filter(Boolean).join(' ').toLowerCase()
 
       const matchesQuery = !normalizedQuery || searchableText.includes(normalizedQuery)
-      const matchesCategory = !galleryFilters.category || prompt.categories.includes(galleryFilters.category)
-      const matchesSource = galleryFilters.sourceSite === 'all' || prompt.sourceSite === galleryFilters.sourceSite
-      const matchesLanguage = galleryFilters.language === 'all' || prompt.originalLanguage === galleryFilters.language
-      const matchesImageState = galleryFilters.imageState === 'all' || prompt.previewImages.length > 0
 
-      return matchesQuery && matchesCategory && matchesSource && matchesLanguage && matchesImageState
+      return matchesQuery
     })
-  }, [galleryFilters, prompts, query])
+  }, [prompts, query])
 
   const selectedPrompt = useMemo(() => {
     return filteredPrompts.find((prompt) => prompt.id === selectedPromptId) ?? filteredPrompts[0] ?? null
@@ -101,13 +70,6 @@ export function PromptManagementPage() {
 
   const selectedPreviewImage = selectedPrompt?.previewImages[selectedImageIndex] ?? selectedPrompt?.previewImages[0]
   const filteredCountLabel = `${filteredPrompts.length} / ${prompts.length} 条`
-  const hasActiveGalleryFilters = useMemo(() => {
-    return galleryFilters.category !== null
-      || galleryFilters.sourceSite !== 'all'
-      || galleryFilters.language !== 'all'
-      || galleryFilters.imageState !== 'all'
-  }, [galleryFilters])
-  const filterOptions = useMemo(() => getGalleryFilterOptions(prompts), [prompts])
   const listPreviewImages = useMemo<PromptPreviewListItem[]>(() => {
     return filteredPrompts.flatMap((prompt, promptIndex) => {
       const previewImage = prompt.previewImages[0]
@@ -169,11 +131,6 @@ export function PromptManagementPage() {
     }
   }
 
-  function showPromptInList(prompt: PromptRecord) {
-    setSelectedPromptId(prompt.id)
-    setViewMode('list')
-  }
-
   function useTemplateDirectly(templateId: string) {
     navigate('/', {
       state: {
@@ -185,57 +142,46 @@ export function PromptManagementPage() {
   }
 
   return (
-    <section className="col-span-2 flex min-h-0 flex-col gap-4 bg-background-solid p-4">
-      <PromptPageToolbar
-        countLabel={filteredCountLabel}
-        hasActiveFilters={hasActiveGalleryFilters}
-        query={query}
-        viewMode={viewMode}
-        onClearFilters={() => setGalleryFilters(defaultGalleryFilters)}
-        onCreatePrompt={() => void navigate('/prompts/new')}
-        onQueryChange={setQuery}
-        onViewModeChange={setViewMode}
-      />
-
+    <section className="col-span-2 grid min-h-0 grid-cols-[360px_minmax(0,1fr)] bg-background-solid">
       {error ? (
-        <div className="rounded-lg bg-background-subtle px-4 py-2 text-base text-text-error">
+        <div className="absolute left-5 right-5 top-5 z-20 rounded-lg bg-background-subtle px-4 py-2 text-base text-text-error">
           {error}
         </div>
       ) : null}
 
-      {viewMode === 'list' ? (
-        <PromptListView
+        <PromptLibraryPane
           copiedPromptId={copiedPromptId}
+          countLabel={filteredCountLabel}
           filteredPrompts={filteredPrompts}
           listImagePreview={listImagePreview}
           listPreviewImages={listPreviewImages}
           loading={loading}
           promptsCount={prompts.length}
+          query={query}
           selectedPrompt={selectedPrompt}
-          selectedImageIndex={selectedImageIndex}
-          selectedPreviewImage={selectedPreviewImage}
           onCopy={(prompt) => void copyPrompt(prompt)}
           onCreatePrompt={() => void navigate('/prompts/new')}
-          onOpenOriginalSource={() => selectedPrompt ? void openOriginalSource(selectedPrompt) : undefined}
-          onSelectImage={setSelectedImageIndex}
+          onQueryChange={setQuery}
           onSelectPrompt={setSelectedPromptId}
-          onUsePrompt={(prompt) => useTemplateDirectly(prompt.id)}
         />
-      ) : (
-        <PromptGalleryView
-          copiedPromptId={copiedPromptId}
-          filterOptions={filterOptions}
-          filters={galleryFilters}
-          loading={loading}
-          prompts={filteredPrompts}
-          promptsCount={prompts.length}
-          onCopy={(prompt) => void copyPrompt(prompt)}
-          onCreatePrompt={() => void navigate('/prompts/new')}
-          onFiltersChange={setGalleryFilters}
-          onShowPromptInList={showPromptInList}
-          onUsePrompt={(prompt) => useTemplateDirectly(prompt.id)}
-        />
-      )}
+
+      <div className="min-h-0 bg-background-solid shadow-[-1px_0_0_var(--border)]">
+        {selectedPrompt ? (
+          <PromptDetail
+            copied={copiedPromptId === selectedPrompt.id}
+            prompt={selectedPrompt}
+            selectedImageIndex={selectedImageIndex}
+            selectedPreviewImage={selectedPreviewImage}
+            onCopy={() => void copyPrompt(selectedPrompt)}
+            onEdit={() => void navigate(`/prompts/${encodeURIComponent(selectedPrompt.id)}/edit`)}
+            onOpenOriginalSource={() => void openOriginalSource(selectedPrompt)}
+            onSelectImage={setSelectedImageIndex}
+            onUse={() => useTemplateDirectly(selectedPrompt.id)}
+          />
+        ) : (
+          <EmptyState icon={MessageSquareText} title="选择一个提示词" description="已保存模板会在这里显示预览图和内容" />
+        )}
+      </div>
 
       {listImagePreview.isOpen && listImagePreview.previewImage ? (
         <ImagePreviewOverlay
@@ -257,352 +203,90 @@ export function PromptManagementPage() {
   )
 }
 
-function PromptPageToolbar({
-  countLabel,
-  hasActiveFilters,
-  query,
-  viewMode,
-  onClearFilters,
-  onCreatePrompt,
-  onQueryChange,
-  onViewModeChange,
-}: {
-  countLabel: string
-  hasActiveFilters: boolean
-  query: string
-  viewMode: PromptViewMode
-  onClearFilters: () => void
-  onCreatePrompt: () => void
-  onQueryChange: (query: string) => void
-  onViewModeChange: (viewMode: PromptViewMode) => void
-}) {
-  return (
-    <header className="flex shrink-0 items-center gap-3 rounded-lg bg-background-subtle px-4 py-3">
-      <label className="flex min-w-[280px] flex-1 items-center gap-2 rounded-lg bg-fill px-3 transition-colors">
-        <Search className="size-3.5 shrink-0 text-text-muted" strokeWidth={1.8} />
-        <Input
-          className="h-8 border-0 bg-transparent px-0 focus:border-0"
-          placeholder="搜索标题、分类、作者"
-          value={query}
-          onChange={(event) => onQueryChange(event.target.value)}
-        />
-      </label>
-      <span className="shrink-0 text-base font-medium text-text-muted">{countLabel}</span>
-      {hasActiveFilters ? (
-        <button
-          className="h-8 shrink-0 cursor-pointer rounded-lg px-2.5 text-base font-semibold text-text-muted transition-colors hover:bg-fill-hover hover:text-text-strong"
-          type="button"
-          onClick={onClearFilters}
-        >
-          清除筛选
-        </button>
-      ) : null}
-      <Button className="shrink-0 gap-1.5 bg-text-strong text-background-solid hover:bg-text-muted" onClick={onCreatePrompt}>
-        <Plus className="size-3.5" strokeWidth={1.8} />
-        新建提示词
-      </Button>
-      <div className="flex shrink-0 rounded-lg bg-fill-hover p-0.5">
-        <ViewModeButton
-          active={viewMode === 'list'}
-          icon={List}
-          label="列表"
-          onClick={() => onViewModeChange('list')}
-        />
-        <ViewModeButton
-          active={viewMode === 'gallery'}
-          icon={LayoutGrid}
-          label="画廊"
-          onClick={() => onViewModeChange('gallery')}
-        />
-      </div>
-    </header>
-  )
-}
-
-function ViewModeButton({
-  active,
-  icon: Icon,
-  label,
-  onClick,
-}: {
-  active: boolean
-  icon: LucideIcon
-  label: string
-  onClick: () => void
-}) {
-  return (
-    <button
-      aria-pressed={active}
-      className={cn(
-        'inline-flex h-8 cursor-pointer items-center justify-center gap-1.5 rounded-md px-2.5 text-base font-semibold transition-colors',
-        active ? 'bg-background-solid text-text-strong' : 'text-text-muted hover:text-text-strong',
-      )}
-      type="button"
-      onClick={onClick}
-    >
-      <Icon className="size-3.5" strokeWidth={1.8} />
-      {label}
-    </button>
-  )
-}
-
-function PromptListView({
+function PromptLibraryPane({
   copiedPromptId,
+  countLabel,
   filteredPrompts,
   listImagePreview,
   listPreviewImages,
   loading,
   promptsCount,
+  query,
   selectedPrompt,
-  selectedImageIndex,
-  selectedPreviewImage,
   onCopy,
   onCreatePrompt,
-  onOpenOriginalSource,
-  onSelectImage,
+  onQueryChange,
   onSelectPrompt,
-  onUsePrompt,
 }: {
   copiedPromptId: string | null
+  countLabel: string
   filteredPrompts: PromptRecord[]
   listImagePreview: ReturnType<typeof useImagePreview<PromptPreviewListItem>>
   listPreviewImages: PromptPreviewListItem[]
   loading: boolean
   promptsCount: number
+  query: string
   selectedPrompt: PromptRecord | null
-  selectedImageIndex: number
-  selectedPreviewImage?: PromptRecord['previewImages'][number]
   onCopy: (prompt: PromptRecord) => void
   onCreatePrompt: () => void
-  onOpenOriginalSource: () => void
-  onSelectImage: (index: number) => void
+  onQueryChange: (query: string) => void
   onSelectPrompt: (promptId: string) => void
-  onUsePrompt: (prompt: PromptRecord) => void
 }) {
   return (
-    <div className="grid min-h-0 flex-1 grid-cols-[360px_minmax(0,1fr)] gap-4">
-      <aside className="flex min-h-0 flex-col rounded-lg bg-background-subtle">
-        <header className="shrink-0 px-4 py-4">
-          <div className="flex items-center gap-2 text-base font-semibold text-text-strong">
-            <FileText className="size-4 text-text-muted" strokeWidth={1.8} />
-            <span>提示词库</span>
-          </div>
-        </header>
-
-        <div className="art-pilot-scrollbar min-h-0 flex-1 overflow-y-auto p-2">
-          {loading ? (
-            <EmptyState icon={MessageSquareText} title="正在读取提示词" description="稍候片刻" />
-          ) : filteredPrompts.length > 0 ? (
-            <div className="flex flex-col gap-2">
-              {filteredPrompts.map((prompt) => (
-                <PromptListItem
-                  copied={copiedPromptId === prompt.id}
-                  isSelected={prompt.id === selectedPrompt?.id}
-                  key={prompt.id}
-                  prompt={prompt}
-                  previewItem={listPreviewImages.find((image) => image.promptId === prompt.id)}
-                  onCopy={() => onCopy(prompt)}
-                  onPreviewImage={listImagePreview.openPreview}
-                  onSelect={() => onSelectPrompt(prompt.id)}
-                />
-              ))}
-            </div>
-          ) : (
-            <EmptyState
-              action={promptsCount > 0 ? undefined : {
-                label: '新建提示词',
-                onClick: onCreatePrompt,
-              }}
-              icon={MessageSquareText}
-              title={promptsCount > 0 ? '没有匹配结果' : '暂无提示词'}
-              description={promptsCount > 0 ? '调整关键词或筛选条件试试' : '你可以手动创建模板，也可以用链接快速填充。'}
+    <aside className="flex min-h-0 flex-col bg-background-solid">
+      <div className="shrink-0 px-5 pb-4 pt-6">
+        <div className="flex items-center gap-2">
+          <label className="flex min-w-0 flex-1 items-center gap-2 rounded-lg bg-background-subtle px-3 transition-colors">
+            <Search className="size-3.5 shrink-0 text-text-muted" strokeWidth={1.8} />
+            <Input
+              className="h-8 border-0 bg-transparent px-0 focus:border-0"
+              placeholder="搜索标题、分类、作者"
+              value={query}
+              onChange={(event) => onQueryChange(event.target.value)}
             />
-          )}
+          </label>
+          <Button className="shrink-0 gap-1.5 bg-text-strong text-background-solid hover:bg-text-muted" onClick={onCreatePrompt}>
+            <Plus className="size-3.5" strokeWidth={1.8} />
+            新建
+          </Button>
         </div>
-      </aside>
 
-      <div className="flex min-h-0 flex-col rounded-lg bg-background-subtle">
-        {selectedPrompt ? (
-          <PromptDetail
-            copied={copiedPromptId === selectedPrompt.id}
-            prompt={selectedPrompt}
-            selectedImageIndex={selectedImageIndex}
-            selectedPreviewImage={selectedPreviewImage}
-            onCopy={() => onCopy(selectedPrompt)}
-            onOpenOriginalSource={onOpenOriginalSource}
-            onSelectImage={onSelectImage}
-            onUse={() => onUsePrompt(selectedPrompt)}
-          />
+        <div className="mt-4 flex items-center justify-between gap-3">
+          <span className="text-base font-medium text-text-muted">{countLabel}</span>
+        </div>
+      </div>
+
+      <div className="art-pilot-scrollbar min-h-0 flex-1 overflow-y-auto px-3 pb-4">
+        {loading ? (
+          <EmptyState icon={MessageSquareText} title="正在读取提示词" description="稍候片刻" />
+        ) : filteredPrompts.length > 0 ? (
+          <div className="flex flex-col gap-2">
+            {filteredPrompts.map((prompt) => (
+              <PromptListItem
+                copied={copiedPromptId === prompt.id}
+                isSelected={prompt.id === selectedPrompt?.id}
+                key={prompt.id}
+                prompt={prompt}
+                previewItem={listPreviewImages.find((image) => image.promptId === prompt.id)}
+                onCopy={() => onCopy(prompt)}
+                onPreviewImage={listImagePreview.openPreview}
+                onSelect={() => onSelectPrompt(prompt.id)}
+              />
+            ))}
+          </div>
         ) : (
-          <EmptyState icon={MessageSquareText} title="选择一个提示词" description="已保存模板会在这里显示预览图和内容" />
+          <EmptyState
+            action={promptsCount > 0 ? undefined : {
+              label: '新建提示词',
+              onClick: onCreatePrompt,
+            }}
+            icon={MessageSquareText}
+            title={promptsCount > 0 ? '没有匹配结果' : '暂无提示词'}
+            description={promptsCount > 0 ? '调整关键词或筛选条件试试' : '你可以手动创建模板，也可以用链接快速填充。'}
+          />
         )}
       </div>
-    </div>
-  )
-}
-
-function PromptDetail({
-  copied,
-  prompt,
-  selectedImageIndex,
-  selectedPreviewImage,
-  onCopy,
-  onOpenOriginalSource,
-  onSelectImage,
-  onUse,
-}: {
-  copied: boolean
-  prompt: PromptRecord
-  selectedImageIndex: number
-  selectedPreviewImage?: PromptRecord['previewImages'][number]
-  onCopy: () => void
-  onOpenOriginalSource: () => void
-  onSelectImage: (index: number) => void
-  onUse: () => void
-}) {
-  const detailPreviewImages = useMemo(() => {
-    return prompt.previewImages.map((image, index) => ({
-      imageUrl: image.url,
-      index,
-    }))
-  }, [prompt.previewImages])
-  const detailImagePreview = useImagePreview(detailPreviewImages)
-
-  return (
-    <article className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)_auto]">
-      <div className="grid min-h-0 grid-cols-[minmax(0,1.35fr)_minmax(320px,0.65fr)]">
-        <div className="min-h-0 bg-background-subtle p-4">
-          {selectedPreviewImage ? (
-            <button
-              aria-label="预览当前提示词图片"
-              className="flex h-full min-h-0 w-full cursor-zoom-in items-center justify-center overflow-hidden rounded-lg bg-fill"
-              type="button"
-              onClick={() => {
-                const previewImage = detailPreviewImages[selectedImageIndex] ?? detailPreviewImages[0]
-
-                if (previewImage) {
-                  detailImagePreview.openPreview(previewImage)
-                }
-              }}
-            >
-              <img
-                alt={selectedPreviewImage.alt ?? prompt.title}
-                className="h-full w-full object-contain"
-                src={selectedPreviewImage.url}
-              />
-            </button>
-          ) : (
-            <div className="flex h-full min-h-[320px] items-center justify-center rounded-lg bg-fill text-text-muted">
-              <div className="flex flex-col items-center gap-3 text-center">
-                <ImageOff className="size-8" strokeWidth={1.8} />
-                <span className="text-base">没有预览图</span>
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className="art-pilot-scrollbar min-h-0 overflow-y-auto px-5 py-5">
-          <div className="mb-3 flex flex-wrap gap-1.5">
-            {prompt.categories.length > 0 ? (
-              prompt.categories.map((category) => (
-                <span className="rounded-md bg-fill-hover px-2 py-1 text-base font-medium text-text-muted" key={category}>
-                  {category}
-                </span>
-              ))
-            ) : (
-              <span className="rounded-md bg-fill-hover px-2 py-1 text-base font-medium text-text-muted">未分类</span>
-            )}
-          </div>
-
-          <h1 className="text-title font-semibold leading-7 text-text-strong">{prompt.title}</h1>
-
-          {prompt.description ? (
-            <p className="mt-3 text-base leading-6 text-text-muted">{prompt.description}</p>
-          ) : null}
-
-          <div className="mt-5 grid grid-cols-2 gap-2">
-            <InfoTile label="来源" value={getSourceSiteLabel(prompt.sourceSite)} />
-            <InfoTile label="更新时间" value={formatDate(prompt.updatedAt)} />
-            <InfoTile label="作者" value={prompt.sourceAuthor ?? '未知'} />
-            <InfoTile label="语言" value={prompt.originalLanguage?.toUpperCase() ?? '未知'} />
-          </div>
-
-          {prompt.previewImages.length > 1 ? (
-            <div className="mt-5">
-              <div className="mb-2 text-base font-semibold text-text-strong">预览图</div>
-              <div className="grid grid-cols-4 gap-2">
-                {prompt.previewImages.map((image, index) => (
-                  <button
-                    aria-label={`选择预览图 ${index + 1}`}
-                    className={cn(
-                      'aspect-square overflow-hidden rounded-lg border bg-background-subtle transition-colors',
-                      index === selectedImageIndex ? 'border-text-strong' : 'border-border hover:border-border-hover',
-                    )}
-                    key={`${image.url}-${index}`}
-                    onClick={() => onSelectImage(index)}
-                    type="button"
-                  >
-                    <img
-                      alt={image.alt ?? `${prompt.title} 预览图 ${index + 1}`}
-                      className="size-full object-cover"
-                      src={image.url}
-                    />
-                  </button>
-                ))}
-              </div>
-            </div>
-          ) : null}
-
-          <div className="mt-5 flex flex-wrap gap-2">
-            <Button className="gap-1.5 bg-text-strong text-background-solid hover:bg-text-muted" onClick={onUse}>
-              <Plus className="size-3.5" strokeWidth={1.8} />
-              使用模板
-            </Button>
-            <Button className="gap-1.5" onClick={onCopy}>
-              {copied ? <Check className="size-3.5" strokeWidth={1.8} /> : <Copy className="size-3.5" strokeWidth={1.8} />}
-              {copied ? '已复制' : '复制提示词'}
-            </Button>
-            {prompt.originalSourceUrl ? (
-              <button
-                className="inline-flex h-8 cursor-pointer items-center justify-center gap-1.5 rounded-lg px-3 text-base font-semibold text-text-muted transition-colors hover:bg-fill-hover hover:text-text-strong"
-                type="button"
-                onClick={onOpenOriginalSource}
-              >
-                <ExternalLink className="size-3.5" strokeWidth={1.8} />
-                原始来源
-              </button>
-            ) : null}
-          </div>
-        </div>
-      </div>
-
-      <section className="max-h-[32vh] min-h-[180px] px-5 py-4">
-        <div className="mb-2 flex items-center justify-between gap-3">
-          <h2 className="text-base font-semibold text-text-strong">Prompt</h2>
-          <span className="text-base text-text-muted">{prompt.content.length} 字符</span>
-        </div>
-        <pre className="art-pilot-scrollbar h-[calc(100%-28px)] overflow-y-auto whitespace-pre-wrap rounded-lg bg-background-subtle p-4 text-base leading-6 text-text-strong">
-          {prompt.content}
-        </pre>
-      </section>
-
-      {detailImagePreview.isOpen && detailImagePreview.previewImage ? (
-        <ImagePreviewOverlay
-          currentPosition={detailImagePreview.currentPosition}
-          image={detailImagePreview.previewImage}
-          imageCount={detailImagePreview.imageCount}
-          prompt={prompt.title}
-          zoom={detailImagePreview.zoom}
-          onClose={detailImagePreview.closePreview}
-          onNext={detailImagePreview.showNext}
-          onPrevious={detailImagePreview.showPrevious}
-          onResetZoom={detailImagePreview.resetZoom}
-          onZoomByDelta={detailImagePreview.zoomByDelta}
-          onZoomIn={detailImagePreview.zoomIn}
-          onZoomOut={detailImagePreview.zoomOut}
-        />
-      ) : null}
-    </article>
+    </aside>
   )
 }
 
@@ -688,340 +372,6 @@ function PromptListItem({
   )
 }
 
-function PromptGalleryView({
-  copiedPromptId,
-  filterOptions,
-  filters,
-  loading,
-  prompts,
-  promptsCount,
-  onCopy,
-  onCreatePrompt,
-  onFiltersChange,
-  onShowPromptInList,
-  onUsePrompt,
-}: {
-  copiedPromptId: string | null
-  filterOptions: GalleryFilterOptions
-  filters: GalleryFilters
-  loading: boolean
-  prompts: PromptRecord[]
-  promptsCount: number
-  onCopy: (prompt: PromptRecord) => void
-  onCreatePrompt: () => void
-  onFiltersChange: (filters: GalleryFilters) => void
-  onShowPromptInList: (prompt: PromptRecord) => void
-  onUsePrompt: (prompt: PromptRecord) => void
-}) {
-  const [filtersCollapsed, setFiltersCollapsed] = useState(false)
-  const galleryPreviewImages = useMemo<PromptPreviewListItem[]>(() => {
-    return prompts.flatMap((prompt, promptIndex) => {
-      const previewImage = prompt.previewImages[0]
-
-      if (!previewImage) {
-        return []
-      }
-
-      return [{
-        imageUrl: previewImage.url,
-        index: promptIndex,
-        promptId: prompt.id,
-        promptTitle: prompt.title,
-      }]
-    })
-  }, [prompts])
-  const galleryImagePreview = useImagePreview(galleryPreviewImages)
-
-  return (
-    <div className="flex min-h-0 flex-1 flex-col rounded-lg bg-background-subtle">
-      <PromptGalleryFilters
-        collapsed={filtersCollapsed}
-        filterOptions={filterOptions}
-        filters={filters}
-        onCollapsedChange={setFiltersCollapsed}
-        onFiltersChange={onFiltersChange}
-      />
-
-      <div className="art-pilot-scrollbar min-h-0 flex-1 overflow-y-auto bg-background-subtle px-4 py-4">
-        {loading ? (
-          <EmptyState icon={MessageSquareText} title="正在读取提示词" description="稍候片刻" />
-        ) : prompts.length > 0 ? (
-          <div className="columns-2 gap-4 xl:columns-3 2xl:columns-4">
-            {prompts.map((prompt, promptIndex) => (
-              <PromptGalleryCard
-                copied={copiedPromptId === prompt.id}
-                key={prompt.id}
-                prompt={prompt}
-                previewItem={galleryPreviewImages.find((image) => image.promptId === prompt.id)}
-                variantIndex={promptIndex}
-                onCopy={() => onCopy(prompt)}
-                onPreviewImage={galleryImagePreview.openPreview}
-                onShowPrompt={() => onShowPromptInList(prompt)}
-                onUsePrompt={() => onUsePrompt(prompt)}
-              />
-            ))}
-          </div>
-        ) : (
-          <EmptyState
-            action={promptsCount > 0 ? undefined : {
-              label: '新建提示词',
-              onClick: onCreatePrompt,
-            }}
-            icon={Images}
-            title={promptsCount > 0 ? '没有匹配结果' : '暂无提示词'}
-            description={promptsCount > 0 ? '调整关键词或筛选条件试试' : '你可以手动创建模板，也可以用链接快速填充。'}
-          />
-        )}
-      </div>
-
-      {galleryImagePreview.isOpen && galleryImagePreview.previewImage ? (
-        <ImagePreviewOverlay
-          currentPosition={galleryImagePreview.currentPosition}
-          image={galleryImagePreview.previewImage}
-          imageCount={galleryImagePreview.imageCount}
-          prompt={galleryImagePreview.previewImage.promptTitle}
-          zoom={galleryImagePreview.zoom}
-          onClose={galleryImagePreview.closePreview}
-          onNext={galleryImagePreview.showNext}
-          onPrevious={galleryImagePreview.showPrevious}
-          onResetZoom={galleryImagePreview.resetZoom}
-          onZoomByDelta={galleryImagePreview.zoomByDelta}
-          onZoomIn={galleryImagePreview.zoomIn}
-          onZoomOut={galleryImagePreview.zoomOut}
-        />
-      ) : null}
-    </div>
-  )
-}
-
-function PromptGalleryFilters({
-  collapsed,
-  filterOptions,
-  filters,
-  onCollapsedChange,
-  onFiltersChange,
-}: {
-  collapsed: boolean
-  filterOptions: GalleryFilterOptions
-  filters: GalleryFilters
-  onCollapsedChange: (collapsed: boolean) => void
-  onFiltersChange: (filters: GalleryFilters) => void
-}) {
-  const activeFilterCount = getActiveGalleryFilterCount(filters)
-  const ToggleIcon = collapsed ? ChevronDown : ChevronUp
-
-  return (
-    <div className="shrink-0 px-4 py-3">
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-2">
-          <SlidersHorizontal className="size-3.5 shrink-0 text-text-muted" strokeWidth={1.8} />
-          <span className="text-base font-semibold text-text-strong">筛选</span>
-          {activeFilterCount > 0 ? (
-            <span className="rounded-md bg-fill-hover px-1.5 py-0.5 text-base font-medium leading-4 text-text-muted">
-              {activeFilterCount} 项
-            </span>
-          ) : null}
-        </div>
-        <button
-          aria-expanded={!collapsed}
-          aria-label={collapsed ? '展开筛选栏' : '收起筛选栏'}
-          className="inline-flex size-8 cursor-pointer items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-fill-hover hover:text-text-strong"
-          type="button"
-          onClick={() => onCollapsedChange(!collapsed)}
-        >
-          <ToggleIcon className="size-4" strokeWidth={1.8} />
-        </button>
-      </div>
-
-      {collapsed ? null : (
-        <div className="mt-3 space-y-3">
-          <FilterRow label="分类">
-            <FilterChip
-              active={filters.category === null}
-              label="全部"
-              onClick={() => onFiltersChange({ ...filters, category: null })}
-            />
-            {filterOptions.categories.map((category) => (
-              <FilterChip
-                active={filters.category === category}
-                key={category}
-                label={category}
-                onClick={() => onFiltersChange({ ...filters, category })}
-              />
-            ))}
-          </FilterRow>
-
-          <FilterRow label="来源">
-            <FilterChip
-              active={filters.sourceSite === 'all'}
-              label="全部"
-              onClick={() => onFiltersChange({ ...filters, sourceSite: 'all' })}
-            />
-            {filterOptions.sourceSites.map((sourceSite) => (
-              <FilterChip
-                active={filters.sourceSite === sourceSite}
-                key={sourceSite}
-                label={getSourceSiteLabel(sourceSite)}
-                onClick={() => onFiltersChange({ ...filters, sourceSite })}
-              />
-            ))}
-          </FilterRow>
-
-          <FilterRow label="语言">
-            <FilterChip
-              active={filters.language === 'all'}
-              label="全部"
-              onClick={() => onFiltersChange({ ...filters, language: 'all' })}
-            />
-            {filterOptions.languages.map((language) => (
-              <FilterChip
-                active={filters.language === language}
-                key={language}
-                label={language.toUpperCase()}
-                onClick={() => onFiltersChange({ ...filters, language })}
-              />
-            ))}
-          </FilterRow>
-
-          <FilterRow label="图片">
-            <FilterChip
-              active={filters.imageState === 'all'}
-              label="全部"
-              onClick={() => onFiltersChange({ ...filters, imageState: 'all' })}
-            />
-            <FilterChip
-              active={filters.imageState === 'withImage'}
-              label="有图"
-              onClick={() => onFiltersChange({ ...filters, imageState: 'withImage' })}
-            />
-          </FilterRow>
-        </div>
-      )}
-    </div>
-  )
-}
-
-function FilterRow({ children, label }: { children: React.ReactNode, label: string }) {
-  return (
-    <div className="flex min-w-0 items-start gap-3">
-      <div className="w-8 shrink-0 py-1 text-base font-semibold text-text-muted">{label}</div>
-      <div className="flex min-w-0 flex-1 flex-wrap gap-2">{children}</div>
-    </div>
-  )
-}
-
-function FilterChip({
-  active,
-  label,
-  onClick,
-}: {
-  active: boolean
-  label: string
-  onClick: () => void
-}) {
-  return (
-    <button
-      aria-pressed={active}
-      className={cn(
-        'h-7 cursor-pointer rounded-lg px-2.5 text-base font-semibold transition-colors',
-        active
-          ? 'bg-text-strong text-background-solid'
-          : 'bg-fill text-text-muted hover:text-text-strong',
-      )}
-      type="button"
-      onClick={onClick}
-    >
-      {label}
-    </button>
-  )
-}
-
-function PromptGalleryCard({
-  copied,
-  prompt,
-  previewItem,
-  variantIndex,
-  onCopy,
-  onPreviewImage,
-  onShowPrompt,
-  onUsePrompt,
-}: {
-  copied: boolean
-  prompt: PromptRecord
-  previewItem?: PromptPreviewListItem
-  variantIndex: number
-  onCopy: () => void
-  onPreviewImage: (image: PromptPreviewListItem) => void
-  onShowPrompt: () => void
-  onUsePrompt: () => void
-}) {
-  const previewImage = prompt.previewImages[0]
-
-  return (
-    <article className="mb-4 inline-block w-full break-inside-avoid overflow-hidden rounded-lg bg-background-solid">
-      {previewImage && previewItem ? (
-        <button
-          aria-label={`预览 ${prompt.title}`}
-          className="block w-full cursor-zoom-in overflow-hidden bg-fill"
-          type="button"
-          onClick={() => onPreviewImage(previewItem)}
-        >
-          <img
-            alt={previewImage.alt ?? prompt.title}
-            className={cn('w-full object-cover transition-transform duration-150 hover:scale-[1.02]', getGalleryImageHeightClass(variantIndex))}
-            src={previewImage.url}
-          />
-        </button>
-      ) : (
-        <button
-          className={cn(
-            'flex w-full cursor-pointer flex-col items-center justify-center gap-2 bg-fill-hover text-text-muted',
-            getGalleryPlaceholderHeightClass(variantIndex),
-          )}
-          type="button"
-          onClick={onShowPrompt}
-        >
-          <ImageOff className="size-6" strokeWidth={1.8} />
-          <span className="text-base font-medium">没有预览图</span>
-        </button>
-      )}
-
-      <div className="p-3">
-        <button className="block w-full text-left" type="button" onClick={onShowPrompt}>
-          <h2 className="line-clamp-2 text-base font-semibold text-text-strong">{prompt.title}</h2>
-          <p className="mt-1 line-clamp-2 text-base leading-5 text-text-muted">{prompt.description || prompt.content}</p>
-        </button>
-
-        <div className="mt-3 flex flex-wrap gap-1.5">
-          {(prompt.categories.length > 0 ? prompt.categories.slice(0, 3) : ['未分类']).map((category) => (
-            <span className="rounded-md bg-fill-hover px-1.5 py-0.5 text-base leading-4 text-text-muted" key={category}>
-              {category}
-            </span>
-          ))}
-        </div>
-
-        <Button className="mt-3 gap-1.5 bg-text-strong text-background-solid hover:bg-text-muted" display="block" onClick={onUsePrompt}>
-          <Plus className="size-3.5" strokeWidth={1.8} />
-          使用模板
-        </Button>
-
-        <Button className="mt-2 gap-1.5" display="block" onClick={onCopy}>
-          {copied ? <Check className="size-3.5" strokeWidth={1.8} /> : <Copy className="size-3.5" strokeWidth={1.8} />}
-          {copied ? '已复制' : '复制 Prompt'}
-        </Button>
-      </div>
-    </article>
-  )
-}
-
-function InfoTile({ label, value }: { label: string, value: string }) {
-  return (
-    <div className="rounded-lg bg-background-subtle px-3 py-2">
-      <div className="text-base font-medium leading-4 text-text-muted">{label}</div>
-      <div className="mt-0.5 line-clamp-1 text-base font-semibold text-text-strong">{value}</div>
-    </div>
-  )
-}
 
 function EmptyState({
   action,
@@ -1054,41 +404,6 @@ function EmptyState({
       </div>
     </div>
   )
-}
-
-type GalleryFilterOptions = {
-  categories: string[]
-  languages: string[]
-  sourceSites: PromptRecord['sourceSite'][]
-}
-
-function getGalleryFilterOptions(prompts: PromptRecord[]): GalleryFilterOptions {
-  return {
-    categories: Array.from(new Set(prompts.flatMap((prompt) => prompt.categories))).sort(),
-    languages: Array.from(new Set(prompts.map((prompt) => prompt.originalLanguage).filter(isNonEmptyString))).sort(),
-    sourceSites: Array.from(new Set(prompts.map((prompt) => prompt.sourceSite))).sort(),
-  }
-}
-
-function getActiveGalleryFilterCount(filters: GalleryFilters) {
-  return [
-    filters.category !== null,
-    filters.sourceSite !== 'all',
-    filters.language !== 'all',
-    filters.imageState !== 'all',
-  ].filter(Boolean).length
-}
-
-function getGalleryImageHeightClass(index: number) {
-  return ['h-72', 'h-56', 'h-80', 'h-64'][index % 4]
-}
-
-function getGalleryPlaceholderHeightClass(index: number) {
-  return ['h-52', 'h-44', 'h-60', 'h-48'][index % 4]
-}
-
-function isNonEmptyString(value: string | undefined): value is string {
-  return typeof value === 'string' && value.trim().length > 0
 }
 
 function getSourceSiteLabel(sourceSite: PromptRecord['sourceSite']) {

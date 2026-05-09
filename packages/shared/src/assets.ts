@@ -48,6 +48,7 @@ export type AssetImageDetail = AssetImage & {
   generationParams?: AssetGenerationParams
   promptTemplateUse?: {
     templateId: string
+    templateTitle?: string
     values: PromptVariableValue[]
     imageBindings: PromptImageBinding[]
   }

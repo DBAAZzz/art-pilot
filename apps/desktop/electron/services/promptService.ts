@@ -17,8 +17,10 @@ import type {
   ResolvePromptTemplateRequest,
   ResolvedPromptTemplate,
   SavePromptRequest,
+  UpdatePromptTemplateRequest,
 } from '@art-pilot/shared'
 import type { DatabaseService } from './databaseService'
+import { generatedImageRegistry } from '../protocols/generatedImageRegistry'
 import { createLogger } from '../utils/logger'
 
 const logger = createLogger('art-pilot:prompt-service')
@@ -38,6 +40,11 @@ type PromptRow = {
   preview_images_json: string
   created_at: number
   updated_at: number
+}
+
+type PromptPreviewAssetRow = {
+  id: string
+  library_path: string
 }
 
 const PROMPT_SOURCE_SITES = new Set<PromptSourceSite>(['manual', 'youmind', 'other'])
@@ -105,6 +112,59 @@ export class PromptService {
     return this.getPromptById(promptId)
   }
 
+  updatePromptTemplate(request: UpdatePromptTemplateRequest): PromptTemplate {
+    const promptId = normalizeRequiredText(request.id, '模板 ID 不能为空')
+    const normalizedPrompt = normalizePromptTemplateDraft(request)
+    const currentPrompt = this.getPromptById(promptId)
+    const now = Date.now()
+
+    logger.info(
+      'updating prompt template: id=%s sourceSite=%s titleLength=%d contentLength=%d variables=%d',
+      promptId,
+      normalizedPrompt.sourceSite,
+      normalizedPrompt.title.length,
+      normalizedPrompt.content.length,
+      normalizedPrompt.variables.length,
+    )
+
+    this.databaseService
+      .getConnection()
+      .prepare(`
+        UPDATE prompts
+        SET
+          title = ?,
+          content = ?,
+          description = ?,
+          source_site = ?,
+          source_url = ?,
+          source_author = ?,
+          original_source_url = ?,
+          original_language = ?,
+          categories_json = ?,
+          variables_json = ?,
+          preview_images_json = ?,
+          updated_at = ?
+        WHERE id = ?
+      `)
+      .run(
+        normalizedPrompt.title,
+        normalizedPrompt.content,
+        normalizedPrompt.description ?? null,
+        normalizedPrompt.sourceSite,
+        normalizedPrompt.sourceUrl ?? null,
+        normalizedPrompt.sourceAuthor ?? null,
+        normalizedPrompt.originalSourceUrl ?? null,
+        normalizedPrompt.originalLanguage ?? null,
+        JSON.stringify(normalizedPrompt.categories),
+        JSON.stringify(normalizedPrompt.variables),
+        JSON.stringify(normalizedPrompt.previewImages),
+        now,
+        currentPrompt.id,
+      )
+
+    return this.getPromptById(promptId)
+  }
+
   listPrompts(): PromptRecord[] {
     return this.listPromptTemplates()
   }
@@ -115,7 +175,7 @@ export class PromptService {
       .prepare('SELECT * FROM prompts ORDER BY updated_at DESC')
       .all() as PromptRow[]
 
-    return rows.map(mapPromptRow)
+    return rows.map((row) => this.mapPromptRow(row))
   }
 
   getPromptTemplateById(promptId: string): PromptTemplate | null {
@@ -125,7 +185,7 @@ export class PromptService {
       .prepare('SELECT * FROM prompts WHERE id = ? LIMIT 1')
       .get(normalizedPromptId) as PromptRow | undefined
 
-    return row ? mapPromptRow(row) : null
+    return row ? this.mapPromptRow(row) : null
   }
 
   resolvePromptTemplate(request: ResolvePromptTemplateRequest): ResolvedPromptTemplate {
@@ -153,6 +213,40 @@ export class PromptService {
     }
   }
 
+  addAssetPreviewImage(templateId: string, imageId: string): PromptTemplate {
+    const normalizedTemplateId = normalizeRequiredText(templateId, '模板 ID 不能为空')
+    const normalizedImageId = normalizeRequiredText(imageId, '图片 ID 不能为空')
+    const template = this.getPromptById(normalizedTemplateId)
+    const asset = this.getAssetPreviewRow(normalizedImageId)
+
+    if (!asset) {
+      throw new Error('图片不存在，无法添加到模板预览图')
+    }
+
+    const previewUrl = generatedImageRegistry.createAssetThumbnailUrl(asset.id)
+    const existingPreviewImages = template.previewImages
+    const previewImages = existingPreviewImages.some((image) => image.url === previewUrl)
+      ? existingPreviewImages
+      : [
+          {
+            url: previewUrl,
+            alt: template.title,
+          },
+          ...existingPreviewImages,
+        ]
+
+    generatedImageRegistry.registerAsset(asset.id, asset.library_path)
+
+    if (previewImages !== existingPreviewImages) {
+      this.databaseService
+        .getConnection()
+        .prepare('UPDATE prompts SET preview_images_json = ?, updated_at = ? WHERE id = ?')
+        .run(JSON.stringify(previewImages), Date.now(), normalizedTemplateId)
+    }
+
+    return this.getPromptById(normalizedTemplateId)
+  }
+
   private getPromptById(promptId: string) {
     const row = this.databaseService
       .getConnection()
@@ -163,7 +257,60 @@ export class PromptService {
       throw new Error('提示词模板不存在')
     }
 
-    return mapPromptRow(row)
+    return this.mapPromptRow(row)
+  }
+
+  private mapPromptRow(row: PromptRow): PromptRecord {
+    const prompt = mapPromptRow(row)
+
+    for (const previewImage of prompt.previewImages) {
+      this.registerAssetPreviewImage(previewImage.url)
+    }
+
+    return prompt
+  }
+
+  private registerAssetPreviewImage(previewUrl: string) {
+    const imageId = parseAssetPreviewImageId(previewUrl)
+
+    if (!imageId) {
+      return
+    }
+
+    const asset = this.getAssetPreviewRow(imageId, false)
+
+    if (asset) {
+      generatedImageRegistry.registerAsset(asset.id, asset.library_path)
+    }
+  }
+
+  private getAssetPreviewRow(imageId: string, throwOnMissing = true) {
+    const asset = this.databaseService
+      .getConnection()
+      .prepare('SELECT id, library_path FROM generated_images WHERE id = ? LIMIT 1')
+      .get(imageId) as PromptPreviewAssetRow | undefined
+
+    if (!asset && throwOnMissing) {
+      throw new Error('图片不存在，无法添加到模板预览图')
+    }
+
+    return asset
+  }
+}
+
+function parseAssetPreviewImageId(previewUrl: string) {
+  try {
+    const url = new URL(previewUrl)
+
+    if (url.protocol !== 'artpilot-image:' || url.hostname !== 'asset-thumbnail') {
+      return null
+    }
+
+    const imageId = url.pathname.split('/').filter(Boolean)[0]
+
+    return imageId ? decodeURIComponent(imageId) : null
+  } catch {
+    return null
   }
 }
 

@@ -36,9 +36,11 @@ export const IPC_CHANNELS = {
   prompt: {
     fillFromUrl: 'prompt:fill-from-url',
     saveTemplate: 'prompt:save-template',
+    updateTemplate: 'prompt:update-template',
     listTemplates: 'prompt:list-templates',
     getTemplate: 'prompt:get-template',
     resolveTemplate: 'prompt:resolve-template',
+    addAssetPreviewImage: 'prompt:add-asset-preview-image',
     previewImport: 'prompt:preview-import',
     save: 'prompt:save',
     list: 'prompt:list',

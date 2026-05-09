@@ -2,7 +2,7 @@ import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import { IPC_CHANNELS } from '@art-pilot/shared'
 import type { AssetListQuery } from '@art-pilot/shared'
 import type { ImageGenerationEvent, ImageGenerationRequest } from '@art-pilot/shared'
-import type { PromptTemplateDraft, ResolvePromptTemplateRequest, SavePromptRequest } from '@art-pilot/shared'
+import type { PromptTemplateDraft, ResolvePromptTemplateRequest, SavePromptRequest, UpdatePromptTemplateRequest } from '@art-pilot/shared'
 import type { UpdateAppSettingsRequest } from '@art-pilot/shared'
 
 contextBridge.exposeInMainWorld('versions', {
@@ -87,6 +87,9 @@ contextBridge.exposeInMainWorld('api', {
   savePromptTemplate: (request: PromptTemplateDraft) => {
     return ipcRenderer.invoke(IPC_CHANNELS.prompt.saveTemplate, request)
   },
+  updatePromptTemplate: (request: UpdatePromptTemplateRequest) => {
+    return ipcRenderer.invoke(IPC_CHANNELS.prompt.updateTemplate, request)
+  },
   listPromptTemplates: () => {
     return ipcRenderer.invoke(IPC_CHANNELS.prompt.listTemplates)
   },
@@ -95,6 +98,9 @@ contextBridge.exposeInMainWorld('api', {
   },
   resolvePromptTemplate: (request: ResolvePromptTemplateRequest) => {
     return ipcRenderer.invoke(IPC_CHANNELS.prompt.resolveTemplate, request)
+  },
+  addAssetToPromptTemplatePreview: (templateId: string, imageId: string) => {
+    return ipcRenderer.invoke(IPC_CHANNELS.prompt.addAssetPreviewImage, templateId, imageId)
   },
   previewPromptImport: (url: string) => {
     return ipcRenderer.invoke(IPC_CHANNELS.prompt.previewImport, url)

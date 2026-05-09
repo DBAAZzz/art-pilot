@@ -4,6 +4,10 @@ import { createLogger, formatUrlForLog } from '../utils/logger'
 import { getAppIconPath } from './appIcon'
 
 const logger = createLogger('art-pilot:window-manager')
+const MAIN_WINDOW_WIDTH = 1200
+const MAIN_WINDOW_HEIGHT = 800
+const MAIN_WINDOW_MIN_WIDTH = 1024
+const MAIN_WINDOW_MIN_HEIGHT = 690
 
 export class WindowManager {
   private mainWindow: BrowserWindow | null = null
@@ -11,10 +15,19 @@ export class WindowManager {
   createMainWindow() {
     const icon = getAppIconPath()
 
-    logger.info('creating main window: width=%d height=%d hasIcon=%s', 1200, 800, String(Boolean(icon)))
+    logger.info(
+      'creating main window: width=%d height=%d minWidth=%d minHeight=%d hasIcon=%s',
+      MAIN_WINDOW_WIDTH,
+      MAIN_WINDOW_HEIGHT,
+      MAIN_WINDOW_MIN_WIDTH,
+      MAIN_WINDOW_MIN_HEIGHT,
+      String(Boolean(icon)),
+    )
     this.mainWindow = new BrowserWindow({
-      width: 1200,
-      height: 800,
+      width: MAIN_WINDOW_WIDTH,
+      height: MAIN_WINDOW_HEIGHT,
+      minWidth: MAIN_WINDOW_MIN_WIDTH,
+      minHeight: MAIN_WINDOW_MIN_HEIGHT,
       ...(icon ? { icon } : {}),
       titleBarStyle: 'hiddenInset',
       webPreferences: {

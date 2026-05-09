@@ -8,6 +8,8 @@ import type {
   AssetStats,
   GenerationTaskStatus,
   ImageReference,
+  PromptImageBinding,
+  PromptVariableValue,
 } from '@art-pilot/shared'
 import type { DatabaseService } from './databaseService'
 import { warmAssetThumbnailCache } from '../protocols/generatedImageProtocol'
@@ -36,6 +38,10 @@ type AssetRow = {
   size: string | null
   generation_params: string | null
   references_json: string | null
+  prompt_template_id: string | null
+  prompt_template_title: string | null
+  prompt_template_values_json: string | null
+  prompt_template_image_bindings_json: string | null
   status: GenerationTaskStatus
   task_error: string | null
   task_created_at: number
@@ -97,6 +103,10 @@ export class AssetService {
           gt.size,
           gt.generation_params,
           gt.references_json,
+          gt.prompt_template_id,
+          gt.prompt_template_title,
+          gt.prompt_template_values_json,
+          gt.prompt_template_image_bindings_json,
           gt.status,
           gt.error AS task_error,
           gt.created_at AS task_created_at,
@@ -149,6 +159,10 @@ export class AssetService {
           gt.size,
           gt.generation_params,
           gt.references_json,
+          gt.prompt_template_id,
+          gt.prompt_template_title,
+          gt.prompt_template_values_json,
+          gt.prompt_template_image_bindings_json,
           gt.status,
           gt.error AS task_error,
           gt.created_at AS task_created_at,
@@ -181,6 +195,7 @@ export class AssetService {
     return {
       ...mapAssetRowToAssetImage(row),
       generationParams: parseGenerationParams(row.generation_params),
+      promptTemplateUse: parsePromptTemplateUse(row),
       references,
       siblingImages: siblingRows.map((image) => {
         generatedImageRegistry.register(row.task_id, image.image_index, image.library_path)
@@ -340,5 +355,32 @@ function parseGenerationParams(value: string | null): AssetGenerationParams | un
     return typeof parsedValue === 'object' && parsedValue !== null ? parsedValue : undefined
   } catch {
     return undefined
+  }
+}
+
+function parsePromptTemplateUse(row: AssetRow): AssetImageDetail['promptTemplateUse'] | undefined {
+  if (!row.prompt_template_id) {
+    return undefined
+  }
+
+  return {
+    templateId: row.prompt_template_id,
+    templateTitle: row.prompt_template_title ?? undefined,
+    values: parseJsonArray<PromptVariableValue>(row.prompt_template_values_json),
+    imageBindings: parseJsonArray<PromptImageBinding>(row.prompt_template_image_bindings_json),
+  }
+}
+
+function parseJsonArray<T>(value: string | null): T[] {
+  if (!value) {
+    return []
+  }
+
+  try {
+    const parsedValue = JSON.parse(value)
+
+    return Array.isArray(parsedValue) ? parsedValue as T[] : []
+  } catch {
+    return []
   }
 }

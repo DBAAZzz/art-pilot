@@ -1,5 +1,5 @@
 import { IPC_CHANNELS } from '@art-pilot/shared'
-import type { PromptTemplateDraft, ResolvePromptTemplateRequest, SavePromptRequest } from '@art-pilot/shared'
+import type { PromptTemplateDraft, ResolvePromptTemplateRequest, SavePromptRequest, UpdatePromptTemplateRequest } from '@art-pilot/shared'
 import { ipcHandler } from './baseController'
 import type { Controller } from './baseController'
 import type { PromptImportService } from '../services/promptImportService'
@@ -24,6 +24,10 @@ export class PromptController implements Controller {
       return this.promptService.savePromptTemplate(request)
     })
 
+    ipcHandler.handle(IPC_CHANNELS.prompt.updateTemplate, (request: UpdatePromptTemplateRequest) => {
+      return this.promptService.updatePromptTemplate(request)
+    })
+
     ipcHandler.handle(IPC_CHANNELS.prompt.listTemplates, () => {
       return this.promptService.listPromptTemplates()
     })
@@ -34,6 +38,10 @@ export class PromptController implements Controller {
 
     ipcHandler.handle(IPC_CHANNELS.prompt.resolveTemplate, (request: ResolvePromptTemplateRequest) => {
       return this.promptService.resolvePromptTemplate(request)
+    })
+
+    ipcHandler.handle(IPC_CHANNELS.prompt.addAssetPreviewImage, (templateId: string, imageId: string) => {
+      return this.promptService.addAssetPreviewImage(templateId, imageId)
     })
 
     ipcHandler.handle(IPC_CHANNELS.prompt.previewImport, (url: string) => {

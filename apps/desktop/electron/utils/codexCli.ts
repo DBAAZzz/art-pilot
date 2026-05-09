@@ -2,6 +2,7 @@ import { execFile, spawn } from 'node:child_process'
 import type { ChildProcessWithoutNullStreams } from 'node:child_process'
 import { constants } from 'node:fs'
 import { access } from 'node:fs/promises'
+import path from 'node:path'
 import { promisify } from 'node:util'
 import { createLogger } from './logger'
 
@@ -13,6 +14,15 @@ const COMMON_CODEX_PATHS = [
   '/opt/homebrew/bin/codex',
   '/usr/local/bin/codex',
   '/usr/bin/codex',
+]
+const COMMON_BINARY_DIRS = [
+  '/opt/homebrew/bin',
+  '/usr/local/bin',
+  '/usr/bin',
+  '/bin',
+  '/usr/sbin',
+  '/sbin',
+  '/Applications/Codex.app/Contents/Resources',
 ]
 
 export type CodexExecOptions = {
@@ -115,16 +125,25 @@ async function canAccessExecutable(filePath: string) {
   }
 }
 
+export function getCodexChildProcessEnv(executablePath?: string) {
+  const pathValue = [
+    executablePath ? path.dirname(executablePath) : undefined,
+    process.env.PATH,
+    ...COMMON_BINARY_DIRS,
+  ]
+    .filter(Boolean)
+    .join(':')
+
+  return {
+    ...process.env,
+    PATH: pathValue,
+  }
+}
+
 export async function findCodexExecutable() {
   const pathValue = [
     process.env.PATH,
-    '/opt/homebrew/bin',
-    '/usr/local/bin',
-    '/usr/bin',
-    '/bin',
-    '/usr/sbin',
-    '/sbin',
-    '/Applications/Codex.app/Contents/Resources',
+    ...COMMON_BINARY_DIRS,
   ]
     .filter(Boolean)
     .join(':')
@@ -177,6 +196,7 @@ export function runCodexExec(executablePath: string, prompt: string, options: Co
     args.push('-')
 
     const child = spawn(executablePath, args, {
+      env: getCodexChildProcessEnv(executablePath),
       stdio: ['pipe', 'pipe', 'pipe'],
     })
     let stdout = ''
@@ -270,6 +290,7 @@ export function runCodexExecStreaming(
   )
 
   const child = spawn(executablePath, args, {
+    env: getCodexChildProcessEnv(executablePath),
     stdio: ['pipe', 'pipe', 'pipe'],
   })
   logger.info('codex streaming exec spawned: pid=%s', String(child.pid ?? 'unknown'))

@@ -55,7 +55,7 @@ export function SettingPage() {
   const [activeSection, setActiveSection] = useState<SettingSection>('environment')
   
   return (
-    <div className="col-span-2 grid h-full min-h-0 grid-cols-[244px_minmax(0,1fr)] gap-4">
+    <div className="col-span-2 grid h-full min-h-0 grid-cols-[244px_minmax(0,1fr)] gap-4 pt-4">
       <SettingMenu activeSection={activeSection} onSectionChange={setActiveSection} />
 
       <div className="min-h-0 overflow-y-auto px-2 py-2">

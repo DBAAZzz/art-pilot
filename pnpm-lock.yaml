@@ -10,9 +10,6 @@ importers:
 
   apps/desktop:
     dependencies:
-      '@art-pilot/shared':
-        specifier: workspace:*
-        version: link:../../packages/shared
       '@base-ui/react':
         specifier: ^1.4.1
         version: 1.4.1(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
@@ -68,6 +65,9 @@ importers:
         specifier: ^5.0.12
         version: 5.0.12(@types/react@19.2.14)(react@19.2.5)(use-sync-external-store@1.6.0(react@19.2.5))
     devDependencies:
+      '@art-pilot/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
       '@types/better-sqlite3':
         specifier: ^7.6.13
         version: 7.6.13

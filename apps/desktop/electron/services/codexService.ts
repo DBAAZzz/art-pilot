@@ -2,7 +2,7 @@ import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import type { CodexEnvironment, CodexLoginKind, CodexUsageSummary } from '@art-pilot/shared'
 import { readCodexUsageFromSessions } from '../utils/codexUsage'
-import { findCodexExecutable, normalizeError } from '../utils/codexCli'
+import { findCodexExecutable, getCodexChildProcessEnv, normalizeError } from '../utils/codexCli'
 import { createLogger } from '../utils/logger'
 
 const execFileAsync = promisify(execFile)
@@ -43,6 +43,7 @@ export class CodexService {
 
       // 第二步：执行版本命令，确认 CLI 不只是存在，而且当前机器可运行。
       const { stdout: versionOutput } = await execFileAsync(executablePath, ['--version'], {
+        env: getCodexChildProcessEnv(executablePath),
         timeout: 5000,
       })
 
@@ -50,6 +51,7 @@ export class CodexService {
         // 第三步：用 Codex CLI 官方登录状态命令判断认证状态。
         // exit code 0 表示已登录；非 0 会进入 catch，表示未登录或认证失效。
         const { stdout: loginOutput } = await execFileAsync(executablePath, ['login', 'status'], {
+          env: getCodexChildProcessEnv(executablePath),
           timeout: 5000,
         })
         const loginStatus = loginOutput.trim()

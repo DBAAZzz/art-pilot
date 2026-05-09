@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "pnpm --filter @art-pilot/desktop dev",
     "build": "pnpm --filter @art-pilot/desktop build",
+    "dist:dmg": "pnpm --filter @art-pilot/desktop dist:dmg",
     "typecheck": "pnpm --filter @art-pilot/desktop typecheck",
     "preview": "pnpm --filter @art-pilot/desktop preview"
   },

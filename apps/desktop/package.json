@@ -7,14 +7,59 @@
     "dev": "vite",
     "typecheck": "tsc --noEmit",
     "build": "tsc && vite build && electron-builder",
+    "dist:dmg": "tsc && vite build && electron-builder --mac dmg",
     "rebuild:native": "electron-builder install-app-deps",
     "preview": "vite preview"
+  },
+  "build": {
+    "appId": "com.artpilot.desktop",
+    "productName": "Art Pilot",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "dist/**",
+      "dist-electron/**",
+      "build/**",
+      "package.json"
+    ],
+    "asarUnpack": [
+      "**/node_modules/better-sqlite3/**"
+    ],
+    "mac": {
+      "category": "public.app-category.graphics-design",
+      "icon": "build/icon.icns",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ]
+    },
+    "dmg": {
+      "artifactName": "${productName}-${version}-${arch}.${ext}",
+      "contents": [
+        {
+          "x": 130,
+          "y": 220
+        },
+        {
+          "x": 410,
+          "y": 220,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ]
+    }
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@art-pilot/shared": "workspace:*",
     "@base-ui/react": "^1.4.1",
     "@fontsource-variable/geist": "^5.2.8",
     "@tailwindcss/vite": "^4.2.4",
@@ -35,6 +80,7 @@
     "zustand": "^5.0.12"
   },
   "devDependencies": {
+    "@art-pilot/shared": "workspace:*",
     "@types/better-sqlite3": "^7.6.13",
     "@types/debug": "^4.1.13",
     "@types/react": "^19.1.2",

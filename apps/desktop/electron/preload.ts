@@ -78,6 +78,9 @@ contextBridge.exposeInMainWorld('api', {
   openImageFileLocation: (imagePath: string) => {
     return ipcRenderer.invoke(IPC_CHANNELS.imageHistory.openImageFileLocation, imagePath)
   },
+  getAppVersion: () => {
+    return ipcRenderer.invoke(IPC_CHANNELS.system.getAppVersion)
+  },
   openExternalUrl: (url: string) => {
     return ipcRenderer.invoke(IPC_CHANNELS.system.openExternalUrl, url)
   },

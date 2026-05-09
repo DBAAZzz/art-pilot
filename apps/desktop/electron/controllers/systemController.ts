@@ -1,10 +1,14 @@
-import { shell } from 'electron'
+import { app, shell } from 'electron'
 import { IPC_CHANNELS } from '@art-pilot/shared'
 import { ipcHandler } from './baseController'
 import type { Controller } from './baseController'
 
 export class SystemController implements Controller {
   register(): void {
+    ipcHandler.handle(IPC_CHANNELS.system.getAppVersion, () => {
+      return app.getVersion()
+    })
+
     ipcHandler.handle(IPC_CHANNELS.system.openExternalUrl, async (url: string) => {
       const externalUrl = normalizeExternalUrl(url)
       await shell.openExternal(externalUrl)

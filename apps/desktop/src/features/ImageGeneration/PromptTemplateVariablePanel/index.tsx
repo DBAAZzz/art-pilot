@@ -3,7 +3,7 @@ import { useMemo } from 'react'
 import type { ImageReference, PromptImageVariable, PromptTemplate, PromptVariable, PromptVariableValue } from '@art-pilot/shared'
 import { MAX_IMAGE_REFERENCES, getImageVariableMaxCount, resolvePromptTemplateContent } from '@art-pilot/shared'
 
-import { Input } from '@/components/Input'
+import { ImageUploadInput } from '@/components/ImageUploadInput'
 
 export type PromptImageInputValue = {
   id: string
@@ -181,12 +181,11 @@ function ImageVariableField({
   return (
     <div>
       {canAdd ? (
-        <Input
-          accept="image/*"
+        <ImageUploadInput
           id={`var-${variable.key}`}
+          label={maxCount > 1 ? `添加图片 ${imageValues.length}/${maxCount}` : '添加图片'}
           multiple={maxCount > 1}
-          type="file"
-          onChange={(event) => onImageSelect(event.target.files)}
+          onFilesChange={onImageSelect}
         />
       ) : (
         <p className="text-base text-text-muted">已选 {imageValues.length}/{maxCount} 张</p>

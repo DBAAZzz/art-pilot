@@ -44,6 +44,64 @@ function getStatusTextClass(success: boolean | null) {
   return success ? 'text-text-success' : 'text-text-error'
 }
 
+function getEnvironmentStatusDescription(environment: CodexEnvironment | null, loading: boolean) {
+  if (loading) {
+    return '正在检测 Codex 环境'
+  }
+
+  if (!environment) {
+    return '通过 codex login status 判断终端认证状态'
+  }
+
+  if (!environment.installed) {
+    return '未找到 Codex CLI。请先安装 Codex。'
+  }
+
+  if (!environment.available) {
+    return getFriendlyCodexError(environment.error)
+  }
+
+  if (!environment.loggedIn) {
+    return '请在终端运行 codex login 完成登录。'
+  }
+
+  return 'Codex 已登录，可以使用。'
+}
+
+function getCliInstallDescription(environment: CodexEnvironment | null, loading: boolean) {
+  if (loading) {
+    return '正在查找 Codex CLI'
+  }
+
+  if (!environment?.installed) {
+    return '未找到 Codex CLI。请先安装 Codex。'
+  }
+
+  return '已找到可用的 Codex 命令'
+}
+
+function getFriendlyCodexError(error?: string) {
+  if (!error) {
+    return 'Codex 暂时不可用，请稍后重试。'
+  }
+
+  const text = error.toLowerCase()
+
+  if (text.includes('env: node') || text.includes('node: no such file or directory')) {
+    return 'Codex 已安装，但 Node 环境不可用。请确认 Node 已安装，然后重新打开 Art Pilot。'
+  }
+
+  if (text.includes('login status') || text.includes('not logged in') || text.includes('not authenticated')) {
+    return '请在终端运行 codex login 完成登录。'
+  }
+
+  if (text.includes('enoent') || text.includes('command not found')) {
+    return '未找到 Codex CLI。请先安装 Codex。'
+  }
+
+  return 'Codex 暂时不可用，请稍后重试。'
+}
+
 export function EnvironmentPanel() {
   const environment = useCodexEnvironmentStore((state) => state.environment)
   const refreshing = useCodexEnvironmentStore((state) => state.refreshing)
@@ -63,7 +121,7 @@ export function EnvironmentPanel() {
       <SettingsPanelHeader description="Codex 登录状态和账号信息" title="环境检测" />
       <SettingsList>
         <SettingsRow
-          description={environment?.loginStatus || environment?.error || '通过 codex login status 判断终端认证状态'}
+          description={getEnvironmentStatusDescription(environment, loading)}
           title="登录状态"
           action={<span className={`text-base ${getStatusTextClass(loginSucceeded)}`}>{getLoginText(environment, loading)}</span>}
         />
@@ -73,7 +131,7 @@ export function EnvironmentPanel() {
           action={<span className={`truncate text-base ${getStatusTextClass(loginKindSucceeded)}`}>{getLoginKindText(environment)}</span>}
         />
         <SettingsRow
-          description="通过 command -v codex 查找当前终端可用命令"
+          description={getCliInstallDescription(environment, loading)}
           title="CLI 安装"
           action={<span className={`text-base ${getStatusTextClass(cliInstalled)}`}>{environment?.installed ? '已安装' : '未安装'}</span>}
         />

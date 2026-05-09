@@ -31,6 +31,7 @@ export const IPC_CHANNELS = {
     setFavorite: 'assets:set-favorite',
   },
   system: {
+    getAppVersion: 'system:get-app-version',
     openExternalUrl: 'system:open-external-url',
   },
   prompt: {

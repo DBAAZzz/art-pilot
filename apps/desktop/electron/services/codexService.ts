@@ -41,11 +41,25 @@ export class CodexService {
         }
       }
 
-      // 第二步：执行版本命令，确认 CLI 不只是存在，而且当前机器可运行。
-      const { stdout: versionOutput } = await execFileAsync(executablePath, ['--version'], {
-        env: getCodexChildProcessEnv(executablePath),
-        timeout: 5000,
-      })
+      let versionOutput = ''
+
+      try {
+        // 第二步：执行版本命令，确认 CLI 不只是存在，而且当前机器可运行。
+        const result = await execFileAsync(executablePath, ['--version'], {
+          env: getCodexChildProcessEnv(executablePath),
+          timeout: 5000,
+        })
+        versionOutput = result.stdout
+      } catch (error) {
+        logger.warn('codex version check failed: %s', normalizeError(error))
+        return {
+          installed: true,
+          available: false,
+          loggedIn: false,
+          executablePath,
+          error: normalizeError(error),
+        }
+      }
 
       try {
         // 第三步：用 Codex CLI 官方登录状态命令判断认证状态。

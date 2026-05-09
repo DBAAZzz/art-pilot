@@ -1,4 +1,4 @@
-import { app } from 'electron'
+import { Menu, app } from 'electron'
 import path from 'node:path'
 import { registerControllers } from '../controllers'
 import {
@@ -26,6 +26,7 @@ export class AppLifecycle {
 
     app.whenReady().then(() => {
       logger.info('app ready')
+      this.configureApplicationMenu()
       const icon = getAppIconPath()
 
       if (process.platform === 'darwin' && icon) {
@@ -63,5 +64,14 @@ export class AppLifecycle {
     process.on('unhandledRejection', (reason) => {
       logger.error('unhandled rejection: reason=%s', reason instanceof Error ? reason.message : String(reason))
     })
+  }
+
+  private configureApplicationMenu() {
+    if (process.env.VITE_DEV_SERVER_URL) {
+      return
+    }
+
+    Menu.setApplicationMenu(null)
+    logger.info('production application menu disabled')
   }
 }

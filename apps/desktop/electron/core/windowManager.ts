@@ -36,6 +36,7 @@ export class WindowManager {
     })
 
     this.registerWindowTelemetry(this.mainWindow)
+    this.registerProductionDevToolsGuard(this.mainWindow)
 
     if (process.env.VITE_DEV_SERVER_URL) {
       logger.info('loading renderer from dev server: url=%s', formatUrlForLog(process.env.VITE_DEV_SERVER_URL))
@@ -97,6 +98,27 @@ export class WindowManager {
 
       if (this.mainWindow === window) {
         this.clearMainWindow()
+      }
+    })
+  }
+
+  private registerProductionDevToolsGuard(window: BrowserWindow) {
+    if (process.env.VITE_DEV_SERVER_URL) {
+      return
+    }
+
+    window.webContents.on('devtools-opened', () => {
+      window.webContents.closeDevTools()
+      logger.warn('blocked devtools in production')
+    })
+
+    window.webContents.on('before-input-event', (event, input) => {
+      const key = input.key.toLowerCase()
+      const togglesDevTools = key === 'f12' || ((input.meta || input.control) && input.alt && key === 'i')
+
+      if (togglesDevTools) {
+        event.preventDefault()
+        logger.warn('blocked devtools shortcut in production: key=%s', input.key)
       }
     })
   }

@@ -1,13 +1,17 @@
 {
   "name": "@art-pilot/desktop",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "",
   "main": "dist-electron/main.js",
   "scripts": {
     "dev": "vite",
     "typecheck": "tsc --noEmit",
     "build": "tsc && vite build && electron-builder",
-    "dist:dmg": "tsc && vite build && electron-builder --mac dmg",
+    "dist:dmg": "pnpm run dist:dmg:arm64",
+    "dist:dmg:all": "pnpm run dist:dmg:arm64 && pnpm run dist:dmg:x64 && pnpm run dist:dmg:universal",
+    "dist:dmg:arm64": "tsc && vite build && electron-builder --mac dmg --arm64",
+    "dist:dmg:x64": "tsc && vite build && electron-builder --mac dmg --x64",
+    "dist:dmg:universal": "tsc && vite build && electron-builder --mac dmg --universal",
     "rebuild:native": "electron-builder install-app-deps",
     "preview": "vite preview"
   },
@@ -33,11 +37,7 @@
       "icon": "build/icon.icns",
       "target": [
         {
-          "target": "dmg",
-          "arch": [
-            "x64",
-            "arm64"
-          ]
+          "target": "dmg"
         }
       ]
     },

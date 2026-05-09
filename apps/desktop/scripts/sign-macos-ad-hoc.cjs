@@ -6,6 +6,10 @@ exports.default = async function signMacosAdHoc(context) {
     return
   }
 
+  if (context.appOutDir.includes('-universal-') && context.appOutDir.endsWith('-temp')) {
+    return
+  }
+
   const appPath = path.join(context.appOutDir, `${context.packager.appInfo.productFilename}.app`)
 
   execFileSync('codesign', [

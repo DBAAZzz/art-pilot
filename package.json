@@ -7,6 +7,10 @@
     "dev": "pnpm --filter @art-pilot/desktop dev",
     "build": "pnpm --filter @art-pilot/desktop build",
     "dist:dmg": "pnpm --filter @art-pilot/desktop dist:dmg",
+    "dist:dmg:all": "pnpm --filter @art-pilot/desktop dist:dmg:all",
+    "dist:dmg:arm64": "pnpm --filter @art-pilot/desktop dist:dmg:arm64",
+    "dist:dmg:x64": "pnpm --filter @art-pilot/desktop dist:dmg:x64",
+    "dist:dmg:universal": "pnpm --filter @art-pilot/desktop dist:dmg:universal",
     "typecheck": "pnpm --filter @art-pilot/desktop typecheck",
     "preview": "pnpm --filter @art-pilot/desktop preview"
   },

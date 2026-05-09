@@ -46,6 +46,7 @@ export interface ElectronApi {
   setAssetFavorite: (imageId: string, favorite: boolean) => Promise<void>
   openImageLibraryFolder: () => Promise<void>
   openImageFileLocation: (imagePath: string) => Promise<void>
+  getAppVersion: () => Promise<string>
   openExternalUrl: (url: string) => Promise<void>
   fillPromptTemplateFromUrl: (url: string) => Promise<PromptTemplateDraft>
   savePromptTemplate: (draft: PromptTemplateDraft) => Promise<PromptTemplate>

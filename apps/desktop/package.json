@@ -18,6 +18,7 @@
       "output": "release",
       "buildResources": "build"
     },
+    "afterPack": "scripts/sign-macos-ad-hoc.cjs",
     "files": [
       "dist/**",
       "dist-electron/**",

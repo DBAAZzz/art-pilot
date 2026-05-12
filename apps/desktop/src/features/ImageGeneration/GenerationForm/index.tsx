@@ -1,4 +1,4 @@
-import { ArrowUp, FileImage, Image, X } from 'lucide-react'
+import { AlignLeft, ArrowUp, FileImage, Image, X } from 'lucide-react'
 import type { ImageReference } from '@art-pilot/shared'
 import type { ClipboardEvent, KeyboardEvent } from 'react'
 import { useMemo } from 'react'
@@ -125,6 +125,20 @@ export function GenerationForm({
     })
   }
 
+  function formatPromptAsJson() {
+    const formattedPrompt = formatJsonText(prompt)
+
+    if (!formattedPrompt || formattedPrompt === prompt) {
+      return
+    }
+
+    onPromptChange(formattedPrompt)
+    requestAnimationFrame(() => {
+      textareaRef.current?.focus()
+      textareaRef.current?.setSelectionRange(formattedPrompt.length, formattedPrompt.length)
+    })
+  }
+
   return (
     <>
       <div className="flex min-w-0 w-full max-w-full flex-col rounded-xl border border-border bg-fill">
@@ -182,7 +196,7 @@ export function GenerationForm({
                   )}
                   <button
                     aria-label={`移除参考图 ${reference.name ?? reference.path}`}
-                    className="absolute right-1 top-1 flex size-6 cursor-pointer items-center justify-center rounded-lg bg-background-solid/80 text-text-muted transition-colors hover:bg-background-solid hover:text-text-strong"
+                    className="absolute right-1 top-1 flex size-6 items-center justify-center rounded-lg bg-background-solid/80 text-text-muted transition-colors hover:bg-background-solid hover:text-text-strong"
                     type="button"
                     onClick={(event) => {
                       event.stopPropagation()
@@ -199,8 +213,23 @@ export function GenerationForm({
 
         <div className="flex shrink-0 items-center justify-end gap-2 px-3 py-1">
           <button
+            aria-label="格式化 JSON"
+            className={cn(
+              'flex size-8 items-center justify-center rounded-lg text-text-muted transition-colors',
+              isReadOnly || !prompt.trim()
+                ? 'cursor-default opacity-45'
+                : 'hover:bg-fill-hover hover:text-text-strong',
+            )}
+            disabled={isReadOnly || !prompt.trim()}
+            title="格式化 JSON"
+            type="button"
+            onClick={formatPromptAsJson}
+          >
+            <AlignLeft className="size-5" strokeWidth={1.8} />
+          </button>
+          <button
             aria-label="添加参考图"
-            className="flex size-8 cursor-pointer items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-fill-hover hover:text-text-strong"
+            className="flex size-8 items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-fill-hover hover:text-text-strong"
             type="button"
             onClick={() => void onSelectReferences()}
           >
@@ -212,7 +241,7 @@ export function GenerationForm({
               'flex size-6 items-center justify-center rounded-full transition-colors',
               isGenerateDisabled
                 ? 'cursor-default bg-fill-active text-text-muted'
-                : 'cursor-pointer bg-text-strong text-background-solid hover:bg-background-solid-hover hover:text-text-strong',
+                : 'bg-text-strong text-background-solid hover:bg-background-solid-hover hover:text-text-strong',
             )}
             disabled={isGenerateDisabled}
             type="button"
@@ -271,6 +300,20 @@ function isLikelySingleImageFileName(text: string) {
     && !trimmedText.includes('\n')
     && /\.(apng|avif|gif|jpe?g|png|webp)$/i.test(trimmedText)
   )
+}
+
+function formatJsonText(text: string) {
+  const trimmedText = text.trim()
+
+  if (!trimmedText) {
+    return null
+  }
+
+  try {
+    return JSON.stringify(JSON.parse(trimmedText), null, 2)
+  } catch {
+    return null
+  }
 }
 
 async function createImageReferenceFromFile(file: File): Promise<ImageReference | null> {

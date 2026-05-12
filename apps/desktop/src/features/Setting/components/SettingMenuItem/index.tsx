@@ -22,7 +22,7 @@ export function SettingMenuItem({
   return (
     <button
       className={cn(
-        'group flex w-full cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition-[background-color,color,transform] duration-50 active:translate-y-px',
+        'group flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition-[background-color,color,transform] duration-50 active:translate-y-px',
         active ? 'bg-fill-hover text-text-strong' : 'text-text-muted hover:bg-fill-hover hover:text-text-strong',
       )}
       onClick={onClick}

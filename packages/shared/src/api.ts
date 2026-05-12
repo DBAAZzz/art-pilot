@@ -51,6 +51,7 @@ export interface ElectronApi {
   fillPromptTemplateFromUrl: (url: string) => Promise<PromptTemplateDraft>
   savePromptTemplate: (draft: PromptTemplateDraft) => Promise<PromptTemplate>
   updatePromptTemplate: (request: UpdatePromptTemplateRequest) => Promise<PromptTemplate>
+  deletePromptTemplate: (templateId: string) => Promise<void>
   listPromptTemplates: () => Promise<PromptTemplate[]>
   getPromptTemplateById: (templateId: string) => Promise<PromptTemplate | null>
   resolvePromptTemplate: (request: ResolvePromptTemplateRequest) => Promise<ResolvedPromptTemplate>

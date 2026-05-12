@@ -67,7 +67,7 @@ export function PromptTemplateVariablePanel({
           <p className="text-base text-text-muted">模板变量 {filledCount}/{template.variables.length} 已填写</p>
         </div>
         <button
-          className="flex shrink-0 cursor-pointer items-center gap-1 rounded-lg px-2 py-1 text-base text-text-muted transition-colors hover:bg-fill-hover hover:text-text-strong"
+          className="flex shrink-0 items-center gap-1 rounded-lg px-2 py-1 text-base text-text-muted transition-colors hover:bg-fill-hover hover:text-text-strong"
           type="button"
           onClick={onExit}
         >
@@ -100,7 +100,7 @@ export function PromptTemplateVariablePanel({
 
       {preview.previewPrompt ? (
         <details className="group">
-          <summary className="cursor-pointer text-base text-text-muted transition-colors hover:text-text-strong">
+          <summary className="text-base text-text-muted transition-colors hover:text-text-strong">
             Prompt 预览
           </summary>
           <pre className="art-pilot-scrollbar mt-1 max-h-32 overflow-y-auto whitespace-pre-wrap rounded-lg bg-background-subtle p-3 text-base leading-5 text-text-strong">
@@ -196,7 +196,7 @@ function ImageVariableField({
             <div className="group relative aspect-square overflow-hidden rounded-lg bg-fill" key={image.id} title={image.name}>
               <img alt={image.name} className="size-full object-cover" src={image.imageUrl} />
               <button
-                className="absolute right-1 top-1 flex size-5 cursor-pointer items-center justify-center rounded-full bg-black/50 text-white opacity-0 transition-opacity group-hover:opacity-100"
+                className="absolute right-1 top-1 flex size-5 items-center justify-center rounded-full bg-black/50 text-white opacity-0 transition-opacity group-hover:opacity-100"
                 type="button"
                 onClick={() => onImageRemove(image.id)}
               >

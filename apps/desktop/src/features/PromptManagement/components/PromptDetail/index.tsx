@@ -1,4 +1,4 @@
-import { Check, Copy, ExternalLink, ImageOff, Pencil, Plus } from 'lucide-react'
+import { Check, Copy, ExternalLink, ImageOff, Pencil, Plus, Trash2 } from 'lucide-react'
 import type { PromptRecord } from '@art-pilot/shared'
 import { useMemo } from 'react'
 
@@ -13,6 +13,7 @@ type PromptDetailProps = {
   selectedImageIndex: number
   selectedPreviewImage?: PromptRecord['previewImages'][number]
   onCopy: () => void
+  onDelete?: () => void
   onEdit?: () => void
   onOpenOriginalSource: () => void
   onSelectImage: (index: number) => void
@@ -25,6 +26,7 @@ export function PromptDetail({
   selectedImageIndex,
   selectedPreviewImage,
   onCopy,
+  onDelete,
   onEdit,
   onOpenOriginalSource,
   onSelectImage,
@@ -63,10 +65,16 @@ export function PromptDetail({
                 编辑
               </Button>
             ) : null}
+            {onDelete ? (
+              <Button className="gap-1.5 text-text-error hover:text-text-error" onClick={onDelete}>
+                <Trash2 className="size-3.5" strokeWidth={1.8} />
+                删除
+              </Button>
+            ) : null}
             {prompt.originalSourceUrl ? (
               <button
                 aria-label="打开原始来源"
-                className="inline-flex size-8 cursor-pointer items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-fill-hover hover:text-text-strong"
+                className="inline-flex size-8 items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-fill-hover hover:text-text-strong"
                 title="原始来源"
                 type="button"
                 onClick={onOpenOriginalSource}
@@ -115,7 +123,7 @@ export function PromptDetail({
                   <button
                     aria-label={`选择预览图 ${index + 1}`}
                     className={cn(
-                      'aspect-square cursor-pointer overflow-hidden rounded-lg bg-background-subtle transition-colors',
+                      'aspect-square overflow-hidden rounded-lg bg-background-subtle transition-colors',
                       index === selectedImageIndex ? 'bg-fill-hover' : 'hover:bg-fill-hover',
                     )}
                     key={`${image.url}-${index}`}

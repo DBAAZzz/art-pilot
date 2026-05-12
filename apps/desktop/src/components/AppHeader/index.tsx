@@ -52,7 +52,7 @@ export function AppHeader({
         ) : showBackButton ? (
           <button
             aria-label="返回上一层"
-            className="window-no-drag inline-flex size-8 cursor-pointer items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-fill-hover hover:text-text-strong"
+            className="window-no-drag inline-flex size-8 items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-fill-hover hover:text-text-strong"
             data-window-drag-ignore
             type="button"
             onClick={handleBack}

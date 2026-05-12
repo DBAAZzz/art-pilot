@@ -18,7 +18,7 @@ export function Switch({
     <button
       aria-checked={checked}
       className={cn(
-        'inline-flex h-6 w-11 cursor-pointer items-center rounded-full border p-0.5 transition-colors disabled:cursor-not-allowed disabled:opacity-50',
+        'inline-flex h-6 w-11 items-center rounded-full border p-0.5 transition-colors disabled:cursor-not-allowed disabled:opacity-50',
         checked ? 'border-accent bg-accent' : 'border-border bg-fill-hover',
         className,
       )}

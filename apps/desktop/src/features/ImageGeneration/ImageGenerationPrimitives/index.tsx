@@ -45,7 +45,7 @@ export function SegmentButton({
   return (
     <button
       className={cn(
-        'h-full cursor-pointer rounded-xl px-2 text-xs transition-colors',
+        'h-full rounded-xl px-2 text-xs transition-colors',
         active
           ? 'font-medium text-text-strong'
           : 'text-text-muted hover:bg-fill-hover hover:text-text-strong',

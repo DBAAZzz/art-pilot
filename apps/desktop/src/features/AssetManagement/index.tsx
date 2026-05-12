@@ -106,7 +106,7 @@ export function AssetManagementPage() {
           <div className="flex h-8 shrink-0 rounded-lg bg-background-subtle p-0.5">
             <button
               className={cn(
-                'h-7 cursor-pointer rounded-md px-3 text-base font-medium transition-colors',
+                'h-7 rounded-md px-3 text-base font-medium transition-colors',
                 !favoriteOnly ? 'bg-background-solid text-text-strong' : 'text-text-muted hover:text-text-strong',
               )}
               type="button"
@@ -116,7 +116,7 @@ export function AssetManagementPage() {
             </button>
             <button
               className={cn(
-                'h-7 cursor-pointer rounded-md px-3 text-base font-medium transition-colors',
+                'h-7 rounded-md px-3 text-base font-medium transition-colors',
                 favoriteOnly ? 'bg-background-solid text-text-strong' : 'text-text-muted hover:text-text-strong',
               )}
               type="button"
@@ -137,7 +137,7 @@ export function AssetManagementPage() {
           </div>
           <button
             aria-label="重新加载资产"
-            className="flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-background-subtle hover:text-text-strong"
+            className="flex size-8 shrink-0 items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-background-subtle hover:text-text-strong"
             type="button"
             onClick={() => void refreshAssets()}
           >
@@ -195,7 +195,7 @@ function ViewModeButton({
     <button
       aria-label={label}
       className={cn(
-        'flex h-7 cursor-pointer items-center gap-1.5 rounded-md px-2.5 text-base font-medium transition-colors',
+        'flex h-7 items-center gap-1.5 rounded-md px-2.5 text-base font-medium transition-colors',
         isActive ? 'bg-background-solid text-text-strong' : 'text-text-muted hover:text-text-strong',
       )}
       title={label}

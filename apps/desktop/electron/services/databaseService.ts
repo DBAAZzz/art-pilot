@@ -64,6 +64,10 @@ export class DatabaseService {
   }
 
   private seedBuiltinPromptTemplates(database: Database.Database) {
+    const deletedPromptIds = new Set(
+      (database.prepare('SELECT prompt_id FROM prompt_template_deletions').all() as Array<{ prompt_id: string }>)
+        .map((row) => row.prompt_id),
+    )
     const insertPrompt = database.prepare(`
       INSERT OR IGNORE INTO prompts (
         id,
@@ -85,6 +89,10 @@ export class DatabaseService {
     `)
     const transaction = database.transaction(() => {
       for (const template of builtinPromptTemplates) {
+        if (deletedPromptIds.has(template.id)) {
+          continue
+        }
+
         insertPrompt.run(
           template.id,
           template.title,

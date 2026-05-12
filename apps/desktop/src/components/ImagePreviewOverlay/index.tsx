@@ -82,7 +82,7 @@ export function ImagePreviewOverlay({
         </div>
         <button
           aria-label="关闭预览"
-          className="flex size-9 cursor-pointer items-center justify-center rounded-full bg-background-solid/10 text-background-solid transition-colors hover:bg-background-solid/20"
+          className="flex size-9 items-center justify-center rounded-full bg-background-solid/10 text-background-solid transition-colors hover:bg-background-solid/20"
           type="button"
           onClick={onClose}
         >
@@ -94,7 +94,7 @@ export function ImagePreviewOverlay({
         <>
           <button
             aria-label="上一张图片"
-            className="absolute left-5 top-1/2 z-10 flex size-12 -translate-y-1/2 cursor-pointer items-center justify-center rounded-lg text-background-solid/80 transition-colors hover:text-background-solid"
+            className="absolute left-5 top-1/2 z-10 flex size-12 -translate-y-1/2 items-center justify-center rounded-lg text-background-solid/80 transition-colors hover:text-background-solid"
             type="button"
             onClick={(event) => {
               event.stopPropagation()
@@ -105,7 +105,7 @@ export function ImagePreviewOverlay({
           </button>
           <button
             aria-label="下一张图片"
-            className="absolute right-5 top-1/2 z-10 flex size-12 -translate-y-1/2 cursor-pointer items-center justify-center rounded-lg text-background-solid/80 transition-colors hover:text-background-solid"
+            className="absolute right-5 top-1/2 z-10 flex size-12 -translate-y-1/2 items-center justify-center rounded-lg text-background-solid/80 transition-colors hover:text-background-solid"
             type="button"
             onClick={(event) => {
               event.stopPropagation()
@@ -182,7 +182,7 @@ export function ImagePreviewOverlay({
       >
         <button
           aria-label="缩小图片"
-          className="flex size-8 cursor-pointer items-center justify-center rounded-full transition-colors hover:bg-background-solid/10"
+          className="flex size-8 items-center justify-center rounded-full transition-colors hover:bg-background-solid/10"
           type="button"
           onClick={onZoomOut}
         >
@@ -190,7 +190,7 @@ export function ImagePreviewOverlay({
         </button>
         <button
           aria-label="重置缩放"
-          className="flex h-8 cursor-pointer items-center gap-1 rounded-full px-2 text-base transition-colors hover:bg-background-solid/10"
+          className="flex h-8 items-center gap-1 rounded-full px-2 text-base transition-colors hover:bg-background-solid/10"
           type="button"
           onClick={resetZoom}
         >
@@ -199,7 +199,7 @@ export function ImagePreviewOverlay({
         </button>
         <button
           aria-label="放大图片"
-          className="flex size-8 cursor-pointer items-center justify-center rounded-full transition-colors hover:bg-background-solid/10"
+          className="flex size-8 items-center justify-center rounded-full transition-colors hover:bg-background-solid/10"
           type="button"
           onClick={onZoomIn}
         >

@@ -93,6 +93,9 @@ contextBridge.exposeInMainWorld('api', {
   updatePromptTemplate: (request: UpdatePromptTemplateRequest) => {
     return ipcRenderer.invoke(IPC_CHANNELS.prompt.updateTemplate, request)
   },
+  deletePromptTemplate: (templateId: string) => {
+    return ipcRenderer.invoke(IPC_CHANNELS.prompt.deleteTemplate, templateId)
+  },
   listPromptTemplates: () => {
     return ipcRenderer.invoke(IPC_CHANNELS.prompt.listTemplates)
   },

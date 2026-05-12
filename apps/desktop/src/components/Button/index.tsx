@@ -1,4 +1,5 @@
 import type { ButtonHTMLAttributes } from 'react'
+import { forwardRef } from 'react'
 
 import { cn } from '@/lib/utils'
 
@@ -20,7 +21,7 @@ const displayClassNames: Record<ButtonDisplay, string> = {
   block: 'flex w-full',
 }
 
-export function Button({
+export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button({
   children,
   className,
   display = 'inline',
@@ -28,9 +29,10 @@ export function Button({
   type = 'button',
   variant = 'default',
   ...props
-}: ButtonProps) {
+}, ref) {
   return (
     <button
+      ref={ref}
       className={cn(
         displayClassNames[display],
         'h-8 cursor-pointer items-center justify-center rounded-lg px-3 text-base font-semibold transition-colors active:translate-y-px disabled:cursor-not-allowed disabled:opacity-50',
@@ -48,4 +50,4 @@ export function Button({
       {children}
     </button>
   )
-}
+})

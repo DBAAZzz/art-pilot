@@ -332,7 +332,7 @@ export function PromptTemplateEditorPage() {
                   />
                   <button
                     aria-label={`删除预览图 ${index + 1}`}
-                    className="absolute right-1.5 top-1.5 inline-flex size-7 cursor-pointer items-center justify-center rounded-lg bg-background-solid/80 text-text-muted opacity-0 transition-colors group-hover:opacity-100 hover:bg-background-solid/90 hover:text-text-strong focus:opacity-100"
+                    className="absolute right-1.5 top-1.5 inline-flex size-7 items-center justify-center rounded-lg bg-background-solid/80 text-text-muted opacity-0 transition-colors group-hover:opacity-100 hover:bg-background-solid/90 hover:text-text-strong focus:opacity-100"
                     type="button"
                     onClick={() => removePreviewImage(index)}
                   >
@@ -536,7 +536,7 @@ function PromptVariableEditor({
 
       <button
         aria-label="删除变量"
-        className="inline-flex size-8 cursor-pointer items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-fill-hover hover:text-text-strong"
+        className="inline-flex size-8 items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-fill-hover hover:text-text-strong"
         type="button"
         onClick={onRemove}
       >

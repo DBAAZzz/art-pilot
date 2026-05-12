@@ -80,7 +80,7 @@ export function AppSidebar() {
         <NavLink
           className={({ isActive }) =>
             [
-              'group flex h-8 w-full cursor-pointer items-center gap-2 rounded-lg px-2.5 text-left text-base font-medium leading-none transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4655f4]/20',
+              'group flex h-8 w-full items-center gap-2 rounded-lg px-2.5 text-left text-base font-medium leading-none transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4655f4]/20',
               isActive
                 ? 'bg-fill-hover text-text-strong'
                 : 'text-text-muted hover:bg-fill-hover hover:text-text-strong',

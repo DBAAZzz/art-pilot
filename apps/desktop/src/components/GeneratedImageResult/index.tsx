@@ -82,7 +82,7 @@ export function GeneratedImageResult({
                   <div className="group relative size-full overflow-hidden rounded-lg">
                     <button
                       aria-label={`预览图片 ${getImageDisplayIndex(image.index, images)}`}
-                      className="block size-full cursor-pointer overflow-hidden rounded-lg"
+                      className="block size-full overflow-hidden rounded-lg"
                       type="button"
                       onClick={() => imagePreview.openPreview(image)}
                     >
@@ -96,7 +96,7 @@ export function GeneratedImageResult({
                       <div className="pointer-events-none absolute inset-x-0 bottom-0 flex h-14 items-end justify-end bg-gradient-to-t from-text-strong/55 to-text-strong/0 p-2 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
                         <button
                           aria-label={`打开图片 ${getImageDisplayIndex(image.index, images)} 所在文件夹`}
-                          className="pointer-events-auto flex size-8 cursor-pointer items-center justify-center rounded-lg bg-background-solid/15 text-background-solid transition-colors hover:bg-background-solid/25"
+                          className="pointer-events-auto flex size-8 items-center justify-center rounded-lg bg-background-solid/15 text-background-solid transition-colors hover:bg-background-solid/25"
                           title="打开所在文件夹"
                           type="button"
                           onClick={(event) => {
@@ -244,7 +244,7 @@ function TaskAction({
     return (
       <button
         aria-label="取消生成任务"
-        className="inline-flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-fill-hover hover:text-text-error"
+        className="inline-flex size-6 shrink-0 items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-fill-hover hover:text-text-error"
         title="取消生成任务"
         type="button"
         onClick={() => {

@@ -38,7 +38,7 @@ function SelectTrigger({
       data-slot="select-trigger"
       data-size={size}
       className={cn(
-        'flex w-fit cursor-pointer items-center justify-between gap-1.5 rounded-lg border border-border bg-fill py-1.5 pl-2.5 pr-2 text-base text-text-strong whitespace-nowrap transition-colors outline-none select-none hover:border-border-hover hover:bg-fill-hover focus-visible:border-border-hover disabled:cursor-not-allowed disabled:opacity-50 data-placeholder:text-text-muted data-[size=default]:h-8 data-[size=sm]:h-7 *:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-1.5 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*=\'size-\'])]:size-3.5',
+        'flex w-fit items-center justify-between gap-1.5 rounded-lg border border-border bg-fill py-1.5 pl-2.5 pr-2 text-base text-text-strong whitespace-nowrap transition-colors outline-none select-none hover:border-border-hover hover:bg-fill-hover focus-visible:border-border-hover disabled:cursor-not-allowed disabled:opacity-50 data-placeholder:text-text-muted data-[size=default]:h-8 data-[size=sm]:h-7 *:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-1.5 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*=\'size-\'])]:size-3.5',
         className,
       )}
       {...props}
@@ -123,7 +123,7 @@ function SelectItem({
     <SelectPrimitive.Item
       data-slot="select-item"
       className={cn(
-        'relative flex h-8 w-full cursor-pointer items-center gap-1.5 rounded-lg py-0 pl-2 pr-7 text-base text-text-muted outline-hidden select-none transition-colors data-disabled:pointer-events-none data-disabled:opacity-50 data-highlighted:bg-fill-hover data-highlighted:text-text-strong data-selected:bg-fill-hover data-selected:text-text-strong [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*=\'size-\'])]:size-3.5 *:[span]:last:flex *:[span]:last:items-center *:[span]:last:gap-2',
+        'relative flex h-8 w-full items-center gap-1.5 rounded-lg py-0 pl-2 pr-7 text-base text-text-muted outline-hidden select-none transition-colors data-disabled:pointer-events-none data-disabled:opacity-50 data-highlighted:bg-fill-hover data-highlighted:text-text-strong data-selected:bg-fill-hover data-selected:text-text-strong [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*=\'size-\'])]:size-3.5 *:[span]:last:flex *:[span]:last:items-center *:[span]:last:gap-2',
         className,
       )}
       {...props}

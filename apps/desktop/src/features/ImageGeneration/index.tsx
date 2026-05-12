@@ -9,6 +9,7 @@ import { type AspectRatio, type ImageCount, GenerationOptions } from './Generati
 import { PromptTemplateVariablePanel, buildPromptVariableValues, createPromptImageInputValue, mapPromptImagesToReferences } from './PromptTemplateVariablePanel'
 import type { PromptImageInputValue } from './PromptTemplateVariablePanel'
 import { RecentTaskList } from './RecentTaskList'
+import { useConfirm } from '@/components/ConfirmProvider'
 import { getErrorMessage, useLoadingState } from '@/hooks/useLoadingState'
 import { usePointerDrag } from '@/hooks/usePointerDrag'
 
@@ -50,6 +51,7 @@ const PANEL_RESIZER_WIDTH = 8
 
 export function ImageGenerationPage() {
   const location = useLocation()
+  const confirm = useConfirm()
   const panelContainerRef = useRef<HTMLDivElement | null>(null)
   const [prompt, setPrompt] = useState('')
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>('1:1')
@@ -68,7 +70,6 @@ export function ImageGenerationPage() {
   const [templateError, setTemplateError] = useState<string | null>(null)
   const [textValues, setTextValues] = useState<Record<string, string>>({})
   const [imageValues, setImageValues] = useState<Record<string, PromptImageInputValue[]>>({})
-  const [exitConfirmOpen, setExitConfirmOpen] = useState(false)
   const pendingHistoryReloadJobIdsRef = useRef(new Set<string>())
   const handlePanelResizeDrag = useCallback((event: PointerEvent, resizeState: { startX: number, startWidth: number }) => {
     setRecentTasksWidth(clampRecentTasksWidth(resizeState.startWidth - (event.clientX - resizeState.startX), panelContainerRef.current))
@@ -282,18 +283,23 @@ export function ImageGenerationPage() {
     }
   }
 
-  function exitTemplate() {
+  async function exitTemplate() {
     if (hasTemplateVariablesFilled(template, textValues, imageValues)) {
-      setExitConfirmOpen(true)
+      const confirmed = await confirm({
+        confirmLabel: '确定退出',
+        description: '当前已填写的变量数据将会丢失，确定要退出吗？',
+        title: '退出模板模式',
+      })
+
+      if (!confirmed) {
+        return
+      }
+
+      clearTemplateState()
       return
     }
 
     clearTemplateState()
-  }
-
-  function handleConfirmExit() {
-    clearTemplateState()
-    setExitConfirmOpen(false)
   }
 
   function clearTemplateState() {
@@ -615,32 +621,6 @@ export function ImageGenerationPage() {
 
       <RecentTaskList tasks={recentTasks} onCancelTask={cancelGeneration} />
 
-      {exitConfirmOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 px-6 py-6">
-          <div className="w-full max-w-md rounded-lg border border-border bg-background-solid p-6 shadow-xl">
-            <h2 className="text-base font-semibold text-text-strong">退出模板模式</h2>
-            <p className="mt-2 text-base text-text-muted">
-              当前已填写的变量数据将会丢失，确定要退出吗？
-            </p>
-            <div className="mt-6 flex justify-end gap-2">
-              <button
-                className="inline-flex h-8 cursor-pointer items-center justify-center rounded-lg px-3 text-base font-semibold text-text-muted transition-colors hover:bg-fill-hover hover:text-text-strong"
-                type="button"
-                onClick={() => setExitConfirmOpen(false)}
-              >
-                取消
-              </button>
-              <button
-                className="inline-flex h-8 cursor-pointer items-center justify-center rounded-lg bg-text-strong px-3 text-base font-semibold text-background-solid transition-colors hover:bg-text-muted"
-                type="button"
-                onClick={handleConfirmExit}
-              >
-                确定退出
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
     </div>
   )
 }

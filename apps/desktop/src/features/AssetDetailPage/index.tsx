@@ -299,7 +299,7 @@ export function AssetDetailPage() {
           action={(
             <button
               aria-label="复制 Prompt"
-              className="flex size-7 cursor-pointer items-center justify-center rounded-md text-text-muted transition-colors hover:bg-fill-hover hover:text-text-strong"
+              className="flex size-7 items-center justify-center rounded-md text-text-muted transition-colors hover:bg-fill-hover hover:text-text-strong"
               title="复制 Prompt"
               type="button"
               onClick={() => void copyPrompt()}
@@ -338,7 +338,7 @@ export function AssetDetailPage() {
         </DetailSection>
 
         <details className="rounded-lg bg-fill p-3">
-          <summary className="cursor-pointer text-base font-semibold text-text-strong">高级参数</summary>
+          <summary className="text-base font-semibold text-text-strong">高级参数</summary>
           <div className="mt-3 space-y-2">
             <OptionalDetailRow label="provider" value={asset.generationParams?.provider ?? 'codex'} />
             <OptionalDetailRow label="model" value={asset.generationParams?.model} />
@@ -444,7 +444,7 @@ function SiblingHoverButton({
     <button
       aria-label={label}
       className={cn(
-        'absolute top-1/2 z-10 flex size-10 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full bg-background-solid/80 text-text-strong opacity-0 backdrop-blur transition-[opacity,transform,background-color] duration-100 ease-out hover:bg-background-solid group-hover:opacity-100',
+        'absolute top-1/2 z-10 flex size-10 -translate-y-1/2 items-center justify-center rounded-full bg-background-solid/80 text-text-strong opacity-0 backdrop-blur transition-[opacity,transform,background-color] duration-100 ease-out hover:bg-background-solid group-hover:opacity-100',
         direction === 'left' ? 'left-5 hover:-translate-x-0.5' : 'right-5 hover:translate-x-0.5',
       )}
       title={label}
@@ -535,7 +535,7 @@ function CopyableDetailRow({ label, value }: { label: string; value?: string | n
         <span className="min-w-0 truncate text-right text-text-strong" title={value}>{value}</span>
         <button
           aria-label={`复制 ${label}`}
-          className="flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-md text-text-muted opacity-0 transition-[opacity,color,background-color] duration-100 hover:bg-fill-hover hover:text-text-strong group-hover/id:opacity-100"
+          className="flex size-6 shrink-0 items-center justify-center rounded-md text-text-muted opacity-0 transition-[opacity,color,background-color] duration-100 hover:bg-fill-hover hover:text-text-strong group-hover/id:opacity-100"
           title={`复制 ${label}`}
           type="button"
           onClick={() => void navigator.clipboard.writeText(value)}

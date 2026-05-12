@@ -11,6 +11,7 @@ import type { PromptRecord } from '@art-pilot/shared'
 import { useNavigate } from 'react-router'
 
 import { Button } from '@/components/Button'
+import { useConfirm } from '@/components/ConfirmProvider'
 import { ImagePreviewOverlay } from '@/components/ImagePreviewOverlay'
 import { Input } from '@/components/Input'
 import { useApiRequest } from '@/hooks/useApiRequest'
@@ -28,6 +29,7 @@ type PromptPreviewListItem = {
 
 export function PromptManagementPage() {
   const navigate = useNavigate()
+  const confirm = useConfirm()
   const [selectedPromptId, setSelectedPromptId] = useState<string | null>(null)
   const [selectedImageIndex, setSelectedImageIndex] = useState(0)
   const [query, setQuery] = useState('')
@@ -131,6 +133,30 @@ export function PromptManagementPage() {
     }
   }
 
+  async function deletePrompt(prompt: PromptRecord) {
+    const confirmed = await confirm({
+      confirmLabel: '删除',
+      description: `确定删除「${prompt.title}」吗？此操作不可恢复。`,
+      title: '删除提示词',
+      variant: 'danger',
+    })
+
+    if (!confirmed) {
+      return
+    }
+
+    try {
+      const currentIndex = filteredPrompts.findIndex((item) => item.id === prompt.id)
+      const nextSelectedPrompt = filteredPrompts[currentIndex + 1] ?? filteredPrompts[currentIndex - 1] ?? null
+
+      await window.api.deletePromptTemplate(prompt.id)
+      setSelectedPromptId(nextSelectedPrompt?.id ?? null)
+      await loadPrompts()
+    } catch (deleteError) {
+      setError(getErrorMessage(deleteError))
+    }
+  }
+
   function useTemplateDirectly(templateId: string) {
     navigate('/', {
       state: {
@@ -173,6 +199,7 @@ export function PromptManagementPage() {
             selectedImageIndex={selectedImageIndex}
             selectedPreviewImage={selectedPreviewImage}
             onCopy={() => void copyPrompt(selectedPrompt)}
+            onDelete={() => void deletePrompt(selectedPrompt)}
             onEdit={() => void navigate(`/prompts/${encodeURIComponent(selectedPrompt.id)}/edit`)}
             onOpenOriginalSource={() => void openOriginalSource(selectedPrompt)}
             onSelectImage={setSelectedImageIndex}

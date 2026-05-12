@@ -69,3 +69,8 @@ CREATE INDEX IF NOT EXISTS idx_prompts_updated_at
 CREATE INDEX IF NOT EXISTS idx_prompts_source_url
   ON prompts(source_url)
   WHERE source_url IS NOT NULL;
+
+CREATE TABLE IF NOT EXISTS prompt_template_deletions (
+  prompt_id TEXT PRIMARY KEY,
+  deleted_at INTEGER NOT NULL
+);

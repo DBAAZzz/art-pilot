@@ -165,6 +165,29 @@ export class PromptService {
     return this.getPromptById(promptId)
   }
 
+  deletePromptTemplate(promptId: string): void {
+    const normalizedPromptId = normalizeRequiredText(promptId, '模板 ID 不能为空')
+    const currentPrompt = this.getPromptById(normalizedPromptId)
+    const now = Date.now()
+
+    logger.info(
+      'deleting prompt template: id=%s titleLength=%d',
+      currentPrompt.id,
+      currentPrompt.title.length,
+    )
+
+    this.databaseService.transaction(() => {
+      const database = this.databaseService.getConnection()
+
+      database
+        .prepare('INSERT OR REPLACE INTO prompt_template_deletions (prompt_id, deleted_at) VALUES (?, ?)')
+        .run(currentPrompt.id, now)
+      database
+        .prepare('DELETE FROM prompts WHERE id = ?')
+        .run(currentPrompt.id)
+    })
+  }
+
   listPrompts(): PromptRecord[] {
     return this.listPromptTemplates()
   }

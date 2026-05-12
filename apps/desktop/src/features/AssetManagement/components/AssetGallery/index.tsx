@@ -180,18 +180,14 @@ const AssetAlbumTile = memo(function AssetAlbumTile({
   width: number
 }) {
   return (
-    <article className="group relative shrink-0 overflow-hidden rounded-lg bg-background-subtle" style={{ height: TILE_HEIGHT, width }}>
-      <button className="block size-full cursor-pointer overflow-hidden" type="button" onClick={() => onOpen(asset)}>
+    <article className="group relative shrink-0 overflow-hidden rounded-md bg-background-subtle" style={{ height: TILE_HEIGHT, width }}>
+      <button className="block size-full overflow-hidden" type="button" onClick={() => onOpen(asset)}>
         <img alt={asset.prompt} className="size-full object-cover" decoding="async" draggable={false} loading="lazy" src={asset.thumbnailUrl} />
       </button>
       <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 bg-gradient-to-t from-black/45 via-black/10 to-transparent p-2 opacity-0 transition-opacity duration-100 ease-out group-hover:opacity-100">
-        <div className="min-w-0 text-white">
-          <p className="truncate text-base font-medium leading-4">{asset.fileName}</p>
-          <p className="text-base leading-4 text-white/75">{formatDate(asset.createdAt)} · {asset.aspectRatio ?? formatDimensions(asset)}</p>
-        </div>
         <button
           aria-label="继续创作"
-          className="pointer-events-auto flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-full bg-white/18 text-white transition-colors hover:bg-white/28"
+          className="pointer-events-auto flex size-7 shrink-0 items-center justify-center rounded-full bg-white/18 text-white transition-colors hover:bg-white/28"
           title="基于此图继续创作"
           type="button"
           onClick={(event) => {
@@ -205,9 +201,6 @@ const AssetAlbumTile = memo(function AssetAlbumTile({
       <div className="absolute right-2 top-2 flex gap-1 opacity-0 transition-opacity duration-100 ease-out group-hover:opacity-100">
         <TileIconButton label="收藏" onClick={() => onToggleFavorite(asset)}>
           <Heart className={cn('size-4', asset.favorite && 'fill-current text-text-error')} strokeWidth={1.8} />
-        </TileIconButton>
-        <TileIconButton label="复制 prompt" onClick={() => onCopyPrompt(asset)}>
-          <Copy className="size-4" strokeWidth={1.8} />
         </TileIconButton>
         <TileIconButton label="在 Finder 中显示" onClick={() => onOpenImageLocation(asset)}>
           <FolderOpen className="size-4" strokeWidth={1.8} />
@@ -226,7 +219,7 @@ function TileIconButton({ children, label, onClick }: { children: React.ReactNod
   return (
     <button
       aria-label={label}
-      className="flex size-7 cursor-pointer items-center justify-center rounded-full bg-black/35 text-white transition-colors hover:bg-black/50"
+      className="flex size-7 items-center justify-center rounded-full bg-black/35 text-white transition-colors hover:bg-black/50"
       title={label}
       type="button"
       onClick={(event) => {

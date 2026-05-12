@@ -21,7 +21,7 @@ export function Checkbox({
     <button
       aria-checked={checked}
       className={cn(
-        'inline-flex cursor-pointer items-center gap-2 rounded-lg text-base font-semibold text-text-strong transition-colors disabled:cursor-not-allowed disabled:opacity-50',
+        'inline-flex items-center gap-2 rounded-lg text-base font-semibold text-text-strong transition-colors disabled:cursor-not-allowed disabled:opacity-50',
         className,
       )}
       disabled={disabled}

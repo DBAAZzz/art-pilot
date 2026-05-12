@@ -11,6 +11,7 @@ import {
 } from '@/components/Select'
 import { Button } from '@/components/Button'
 import { Input } from '@/components/Input'
+import { Switch } from '@/components/Switch'
 import { useApiRequest } from '@/hooks/useApiRequest'
 import { getErrorMessage, useLoadingState } from '@/hooks/useLoadingState'
 import { SettingsList, SettingsPanelHeader, SettingsRow } from '../components/SettingPanelPrimitives'
@@ -47,6 +48,7 @@ export function StoragePanel() {
   })
   const [imageLibraryPath, setImageLibraryPath] = useState('')
   const [imagePathTemplate, setImagePathTemplate] = useState(DEFAULT_IMAGE_PATH_TEMPLATE)
+  const [stripImageMetadata, setStripImageMetadata] = useState(true)
   const [codexImageCleanup, setCodexImageCleanup] = useState<CodexImageCleanupPolicy>('never')
   const updateState = useLoadingState()
   const [statusText, setStatusText] = useState<string | null>(null)
@@ -61,6 +63,7 @@ export function StoragePanel() {
       if (result) {
         setImageLibraryPath(result.imageLibraryPath)
         setImagePathTemplate(result.imagePathTemplate)
+        setStripImageMetadata(result.stripImageMetadata)
         setCodexImageCleanup(result.codexImageCleanup)
       }
     }
@@ -133,6 +136,32 @@ export function StoragePanel() {
     } catch (error) {
       setSettings(previousSettings)
       setCodexImageCleanup(previousPolicy)
+      setStatusText(getErrorMessage(error))
+    }
+  }
+
+  async function updateStripImageMetadata(nextValue: boolean) {
+    if (!settings || nextValue === settings.stripImageMetadata) {
+      setStripImageMetadata(settings?.stripImageMetadata ?? nextValue)
+      return
+    }
+
+    const previousSettings = settings
+
+    setStripImageMetadata(nextValue)
+    setSettings({
+      ...previousSettings,
+      stripImageMetadata: nextValue,
+    })
+    setStatusText(null)
+
+    try {
+      const nextSettings = await window.api.updateSettings({ stripImageMetadata: nextValue })
+      setSettings(nextSettings)
+      setStripImageMetadata(nextSettings.stripImageMetadata)
+    } catch (error) {
+      setSettings(previousSettings)
+      setStripImageMetadata(previousSettings.stripImageMetadata)
       setStatusText(getErrorMessage(error))
     }
   }
@@ -261,6 +290,17 @@ export function StoragePanel() {
             </Select>
           }
           title="Codex 原图清理"
+        />
+        <SettingsRow
+          action={
+            <Switch
+              aria-label="清除图片元数据"
+              checked={stripImageMetadata}
+              disabled={loading}
+              onCheckedChange={(checked) => void updateStripImageMetadata(checked)}
+            />
+          }
+          title="清除图片元数据"
         />
       </SettingsList>
     </>

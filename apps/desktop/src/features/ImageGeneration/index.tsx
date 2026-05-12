@@ -520,6 +520,7 @@ export function ImageGenerationPage() {
         updateTaskOrCreatePlaceholder(tasks, event.jobId, (task) => ({
           ...task,
           status: event.reason === 'cancelled' ? 'cancelled' : 'error',
+          completedAt: Date.now(),
           error: event.error,
         })),
       )

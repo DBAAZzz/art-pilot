@@ -10,6 +10,7 @@ const logger = createLogger('art-pilot:settings-service')
 const SETTINGS_KEYS = {
   imageLibraryPath: 'imageLibraryPath',
   imagePathTemplate: 'imagePathTemplate',
+  stripImageMetadata: 'stripImageMetadata',
   codexImageCleanup: 'codexImageCleanup',
   codexSessionCleanup: 'codexSessionCleanup',
 } as const
@@ -23,6 +24,7 @@ export class SettingsService {
     return {
       imageLibraryPath: this.getString(SETTINGS_KEYS.imageLibraryPath, getDefaultImageLibraryPath()),
       imagePathTemplate: this.getString(SETTINGS_KEYS.imagePathTemplate, DEFAULT_IMAGE_PATH_TEMPLATE),
+      stripImageMetadata: this.getBoolean(SETTINGS_KEYS.stripImageMetadata, true),
       codexImageCleanup: this.getCodexImageCleanup(),
       codexSessionCleanup: 'never',
     }
@@ -61,6 +63,10 @@ export class SettingsService {
       updates.push([SETTINGS_KEYS.codexImageCleanup, request.codexImageCleanup])
     }
 
+    if (typeof request.stripImageMetadata === 'boolean') {
+      updates.push([SETTINGS_KEYS.stripImageMetadata, request.stripImageMetadata ? 'true' : 'false'])
+    }
+
     if (updates.length > 0) {
       logger.info('updating settings: keys=%s', updates.map(([key]) => key).join(','))
       const now = Date.now()
@@ -87,6 +93,10 @@ export class SettingsService {
     return this.getSettings().codexImageCleanup
   }
 
+  shouldStripImageMetadata() {
+    return this.getSettings().stripImageMetadata
+  }
+
   private getCodexImageCleanup(): CodexImageCleanupPolicy {
     const value = this.getString(SETTINGS_KEYS.codexImageCleanup, 'never')
     // 数据库可能保留未来版本写入的值；v1 遇到未知策略时安全回退为 never。
@@ -102,6 +112,11 @@ export class SettingsService {
       .get(key) as { value?: string } | undefined
 
     return row?.value ?? fallback
+  }
+
+  private getBoolean(key: string, fallback: boolean) {
+    const value = this.getString(key, fallback ? 'true' : 'false')
+    return value === 'true'
   }
 }
 

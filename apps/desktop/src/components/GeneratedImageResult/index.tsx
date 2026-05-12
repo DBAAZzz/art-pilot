@@ -5,6 +5,8 @@ import { useMemo } from 'react'
 import { ImagePreviewOverlay } from '@/components/ImagePreviewOverlay'
 import type { ImagePreviewItem } from '@/hooks/useImagePreview'
 import { useImagePreview } from '@/hooks/useImagePreview'
+import { useNow } from '@/hooks/useNow'
+import { formatDateTime, formatDuration } from '@/lib/time'
 import { cn } from '@/lib/utils'
 
 export type GeneratedImageResultStatus = 'running' | 'complete' | 'error' | 'cancelled'
@@ -13,6 +15,7 @@ export type GeneratedImageResultImage = ImagePreviewItem
 
 export function GeneratedImageResult({
   className,
+  completedAt,
   count,
   createdAt,
   error,
@@ -38,6 +41,7 @@ export function GeneratedImageResult({
   references?: ImageReference[]
   status: GeneratedImageResultStatus
 }) {
+  const now = useNow(status === 'running')
   const imageSlots = createImageSlots(images, count)
   const imagePreview = useImagePreview(images)
   const referencePreviewImages = useMemo(
@@ -46,6 +50,7 @@ export function GeneratedImageResult({
   )
   const referencePreview = useImagePreview(referencePreviewImages)
   const shouldShowImageGrid = status === 'running' || images.length > 0
+  const durationEndTime = status === 'running' ? now : (completedAt ?? now)
 
   return (
     <>
@@ -55,7 +60,7 @@ export function GeneratedImageResult({
             <p className="line-clamp-2 min-w-0 flex-1 text-base font-medium text-text-strong">{prompt}</p>
             <TaskAction status={status} onCancel={onCancel} />
           </div>
-          <p className="mt-2 text-base text-text-muted">任务时间 {formatCreatedAt(createdAt)}</p>
+          <p className="mt-2 text-base text-text-muted">任务时间 {formatDateTime(createdAt)}</p>
         </div>
 
         {message && status === 'running' ? <p className="mb-3 line-clamp-2 text-base text-text-muted">{message}</p> : null}
@@ -113,6 +118,11 @@ export function GeneratedImageResult({
             ))}
           </div>
         ) : null}
+
+        <div className="mt-3 flex items-center justify-between gap-3 text-base text-text-muted">
+          <span>{status === 'running' ? '生成中耗时' : '生成耗时'}</span>
+          <span className="font-mono">{formatDuration(durationEndTime - createdAt)}</span>
+        </div>
       </article>
 
       {imagePreview.isOpen && imagePreview.previewImage ? (
@@ -339,14 +349,4 @@ function getImageSlotClassName(slotCount: number) {
   }
 
   return 'aspect-square w-full overflow-hidden rounded-lg bg-background-subtle'
-}
-
-function formatCreatedAt(timestamp: number) {
-  return new Intl.DateTimeFormat('zh-CN', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(timestamp)
 }

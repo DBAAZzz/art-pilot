@@ -33,7 +33,7 @@ export function SettingsRow({
   action?: ReactNode
 }) {
   return (
-    <div className="grid grid-cols-[minmax(0,1fr)_minmax(180px,480px)] items-center gap-6 py-3 px-4">
+    <div className="grid min-h-14 grid-cols-[minmax(0,1fr)_minmax(180px,480px)] items-center gap-6 py-3 px-4">
       <div className="min-w-80">
         <div className="text-base text-text-strong">{title}</div>
         <div className="mt-1 text-base leading-5 text-text-muted">{description}</div>

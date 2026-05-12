@@ -5,6 +5,7 @@ import { access, copyFile, mkdir, rename, stat, unlink } from 'node:fs/promises'
 import path from 'node:path'
 import { renderImagePathTemplate, getSafeImagePathTemplate } from '@art-pilot/shared'
 import type { SettingsService } from './settingsService'
+import type { ImageSanitizerService } from './imageSanitizerService'
 import { createLogger, formatPathForLog } from '../utils/logger'
 
 const DEFAULT_IMAGE_EXTENSION = '.png'
@@ -19,10 +20,19 @@ export type ImportedImage = {
   width?: number
   height?: number
   cleanupError?: string
+  sourcePreserved: boolean
+}
+
+type ImageImportFileResult = {
+  cleanupError?: string
+  sourcePreserved: boolean
 }
 
 export class ImageLibraryService {
-  constructor(private readonly settingsService: SettingsService) {}
+  constructor(
+    private readonly settingsService: SettingsService,
+    private readonly imageSanitizerService: ImageSanitizerService,
+  ) {}
 
   /**
    * 将 Codex 生成的图片移入图片库，返回包含尺寸、大小、路径等元数据的导入结果。
@@ -40,8 +50,14 @@ export class ImageLibraryService {
       throw new Error('Codex 图片路径必须指向文件')
     }
 
-    const targetPath = await this.createAvailableTargetPath(input)
-    const moveResult = await safeMoveImage(input.sourcePath, targetPath, sourceStat.size)
+    const stripMetadata = this.settingsService.shouldStripImageMetadata()
+    const targetPath = await this.createAvailableTargetPath({
+      ...input,
+      targetExtension: stripMetadata ? DEFAULT_IMAGE_EXTENSION : getSourceExtension(input.sourcePath),
+    })
+    const moveResult = stripMetadata
+      ? await this.sanitizeImage(input.sourcePath, targetPath)
+      : await safeMoveImage(input.sourcePath, targetPath, sourceStat.size)
     const targetStat = await stat(targetPath)
     const imageSize = nativeImage.createFromPath(targetPath).getSize()
 
@@ -64,6 +80,7 @@ export class ImageLibraryService {
       width: imageSize.width || undefined,
       height: imageSize.height || undefined,
       cleanupError: moveResult.cleanupError,
+      sourcePreserved: moveResult.sourcePreserved,
     }
   }
 
@@ -76,6 +93,7 @@ export class ImageLibraryService {
     index: number
     sourcePath: string
     createdAt: number
+    targetExtension: string
   }) {
     const settings = this.settingsService.getSettings()
     const template = getSafeImagePathTemplate(settings.imagePathTemplate)
@@ -87,7 +105,6 @@ export class ImageLibraryService {
       index: input.index,
     })
 
-    const extension = path.extname(input.sourcePath).toLowerCase() || DEFAULT_IMAGE_EXTENSION
     const targetDirectory = path.join(
       settings.imageLibraryPath,
       path.dirname(renderedPath),
@@ -98,7 +115,7 @@ export class ImageLibraryService {
 
     // 目标文件不覆盖：同一任务重复恢复或用户手动放置文件时，自动生成 0001-2.png 这类版本名。
     for (let version = 1; version < 1000; version += 1) {
-      const fileName = version === 1 ? `${baseName}${extension}` : `${baseName}-${version}${extension}`
+      const fileName = version === 1 ? `${baseName}${input.targetExtension}` : `${baseName}-${version}${input.targetExtension}`
       const targetPath = path.join(targetDirectory, fileName)
 
       if (!(await pathExists(targetPath))) {
@@ -108,20 +125,25 @@ export class ImageLibraryService {
 
     throw new Error('无法为图片生成可用的图片库文件名')
   }
+
+  private async sanitizeImage(sourcePath: string, targetPath: string): Promise<ImageImportFileResult> {
+    await this.imageSanitizerService.sanitizeImage({ sourcePath, targetPath })
+    return { sourcePreserved: true }
+  }
 }
 
 /**
  * 安全移动图片：同卷内使用原子 rename；跨卷时走 copy → 校验大小 → rename 临时文件 → 删除源文件。
  * 源文件删除失败不会导致整体失败，而是通过 cleanupError 字段上报。
  */
-async function safeMoveImage(sourcePath: string, targetPath: string, expectedSourceSize: number) {
+async function safeMoveImage(sourcePath: string, targetPath: string, expectedSourceSize: number): Promise<ImageImportFileResult> {
   await access(sourcePath, constants.R_OK)
   await mkdir(path.dirname(targetPath), { recursive: true })
 
   try {
     // 同一 volume 内优先 rename，速度快且是原子移动。
     await rename(sourcePath, targetPath)
-    return {}
+    return { sourcePreserved: false }
   } catch (error) {
     if (!isCrossDeviceError(error)) {
       throw error
@@ -141,13 +163,18 @@ async function safeMoveImage(sourcePath: string, targetPath: string, expectedSou
 
   try {
     await unlink(sourcePath)
-    return {}
+    return { sourcePreserved: false }
   } catch (error) {
     // 目标图片已经安全落库时，源图删除失败不让导入失败，交给 cleanup_status 记录。
     return {
       cleanupError: error instanceof Error ? error.message : String(error),
+      sourcePreserved: true,
     }
   }
+}
+
+function getSourceExtension(sourcePath: string) {
+  return path.extname(sourcePath).toLowerCase() || DEFAULT_IMAGE_EXTENSION
 }
 
 async function pathExists(filePath: string) {

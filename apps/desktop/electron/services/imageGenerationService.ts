@@ -1,7 +1,7 @@
 import { app, webContents } from 'electron'
 import type { WebContents } from 'electron'
 import { constants } from 'node:fs'
-import { access, rename, stat } from 'node:fs/promises'
+import { access, rename, stat, unlink } from 'node:fs/promises'
 import path from 'node:path'
 import { randomUUID } from 'node:crypto'
 import {
@@ -427,7 +427,11 @@ export class ImageGenerationService {
 
   private async rollbackMovedImage(activeJob: ActiveImageGenerationJob, importedImage: ImportedImage, cause: unknown) {
     try {
-      await rename(importedImage.libraryPath, importedImage.originalCodexPath)
+      if (importedImage.sourcePreserved) {
+        await unlink(importedImage.libraryPath)
+      } else {
+        await rename(importedImage.libraryPath, importedImage.originalCodexPath)
+      }
       logger.warn(
         '%s rolled back imported image after database error: source=%s library=%s cause=%s',
         this.formatJobLogContext(activeJob),

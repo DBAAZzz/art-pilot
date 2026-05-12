@@ -14,6 +14,7 @@ import { DatabaseService } from '../services/databaseService'
 import { ImageHistoryService } from '../services/imageHistoryService'
 import { ImageGenerationService } from '../services/imageGenerationService'
 import { ImageLibraryService } from '../services/imageLibraryService'
+import { ImageSanitizerService } from '../services/imageSanitizerService'
 import { PromptImportService } from '../services/promptImportService'
 import { PromptService } from '../services/promptService'
 import { SettingsService } from '../services/settingsService'
@@ -21,7 +22,8 @@ import { SettingsService } from '../services/settingsService'
 export function registerControllers() {
   const databaseService = new DatabaseService()
   const settingsService = new SettingsService(databaseService)
-  const imageLibraryService = new ImageLibraryService(settingsService)
+  const imageSanitizerService = new ImageSanitizerService()
+  const imageLibraryService = new ImageLibraryService(settingsService, imageSanitizerService)
   const imageHistoryService = new ImageHistoryService(databaseService)
   const assetService = new AssetService(databaseService)
   const codexCleanupService = new CodexCleanupService(databaseService, settingsService)

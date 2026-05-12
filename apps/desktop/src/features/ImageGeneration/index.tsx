@@ -11,6 +11,7 @@ import type { PromptImageInputValue } from './PromptTemplateVariablePanel'
 import { RecentTaskList } from './RecentTaskList'
 import { useConfirm } from '@/components/ConfirmProvider'
 import { getErrorMessage, useLoadingState } from '@/hooks/useLoadingState'
+import { useNotificationSound } from '@/hooks/useNotificationSound'
 import { usePointerDrag } from '@/hooks/usePointerDrag'
 
 export type TaskStatus = 'running' | 'complete' | 'error' | 'cancelled'
@@ -52,6 +53,7 @@ const PANEL_RESIZER_WIDTH = 8
 export function ImageGenerationPage() {
   const location = useLocation()
   const confirm = useConfirm()
+  const { playCompletionSound } = useNotificationSound()
   const panelContainerRef = useRef<HTMLDivElement | null>(null)
   const [prompt, setPrompt] = useState('')
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>('1:1')
@@ -509,6 +511,7 @@ export function ImageGenerationPage() {
     }
 
     if (event.type === IMAGE_GENERATION_EVENT_TYPES.complete) {
+      void playCompletionSound()
       setRecentTasks((tasks) =>
         updateTaskOrCreatePlaceholder(tasks, event.jobId, (task) => ({
           ...task,

@@ -1,6 +1,7 @@
 import { app } from 'electron'
 import path from 'node:path'
 import type { AppSettings, CodexImageCleanupPolicy, UpdateAppSettingsRequest } from '@art-pilot/shared'
+import { DEFAULT_IMAGE_PATH_TEMPLATE, validateImagePathTemplate } from '@art-pilot/shared'
 import type { DatabaseService } from './databaseService'
 import { createLogger } from '../utils/logger'
 
@@ -8,6 +9,7 @@ const logger = createLogger('art-pilot:settings-service')
 
 const SETTINGS_KEYS = {
   imageLibraryPath: 'imageLibraryPath',
+  imagePathTemplate: 'imagePathTemplate',
   codexImageCleanup: 'codexImageCleanup',
   codexSessionCleanup: 'codexSessionCleanup',
 } as const
@@ -20,6 +22,7 @@ export class SettingsService {
   getSettings(): AppSettings {
     return {
       imageLibraryPath: this.getString(SETTINGS_KEYS.imageLibraryPath, getDefaultImageLibraryPath()),
+      imagePathTemplate: this.getString(SETTINGS_KEYS.imagePathTemplate, DEFAULT_IMAGE_PATH_TEMPLATE),
       codexImageCleanup: this.getCodexImageCleanup(),
       codexSessionCleanup: 'never',
     }
@@ -37,6 +40,17 @@ export class SettingsService {
 
       // 允许用户输入 ~/Pictures 这类路径，入库前统一展开并转成绝对路径。
       updates.push([SETTINGS_KEYS.imageLibraryPath, path.resolve(expandHomePath(imageLibraryPath))])
+    }
+
+    if (typeof request.imagePathTemplate === 'string') {
+      const template = request.imagePathTemplate.trim()
+      const validation = validateImagePathTemplate(template)
+
+      if (!validation.valid) {
+        throw new Error(`图片路径模板无效：${validation.reason}`)
+      }
+
+      updates.push([SETTINGS_KEYS.imagePathTemplate, template])
     }
 
     if (request.codexImageCleanup !== undefined) {

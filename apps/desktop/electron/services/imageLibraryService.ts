@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto'
 import { constants } from 'node:fs'
 import { access, copyFile, mkdir, rename, stat, unlink } from 'node:fs/promises'
 import path from 'node:path'
+import { renderImagePathTemplate, getSafeImagePathTemplate } from '@art-pilot/shared'
 import type { SettingsService } from './settingsService'
 import { createLogger, formatPathForLog } from '../utils/logger'
 
@@ -23,6 +24,9 @@ export type ImportedImage = {
 export class ImageLibraryService {
   constructor(private readonly settingsService: SettingsService) {}
 
+  /**
+   * 将 Codex 生成的图片移入图片库，返回包含尺寸、大小、路径等元数据的导入结果。
+   */
   async moveImageToLibrary(input: {
     jobId: string
     index: number
@@ -63,17 +67,32 @@ export class ImageLibraryService {
     }
   }
 
+  /**
+   * 生成不冲突的目标文件路径，基于用户配置的路径模板渲染。
+   * 若目标已存在则自动追加版本号（如 0001-2.png）避免覆盖。
+   */
   private async createAvailableTargetPath(input: {
     jobId: string
     index: number
     sourcePath: string
     createdAt: number
   }) {
+    const settings = this.settingsService.getSettings()
+    const template = getSafeImagePathTemplate(settings.imagePathTemplate)
     const createdAt = new Date(input.createdAt)
-    const month = `${createdAt.getFullYear()}-${String(createdAt.getMonth() + 1).padStart(2, '0')}`
-    const targetDirectory = path.join(this.settingsService.getImageLibraryPath(), month, input.jobId)
+
+    const renderedPath = renderImagePathTemplate(template, {
+      createdAt,
+      jobId: input.jobId,
+      index: input.index,
+    })
+
     const extension = path.extname(input.sourcePath).toLowerCase() || DEFAULT_IMAGE_EXTENSION
-    const baseName = String(input.index).padStart(4, '0')
+    const targetDirectory = path.join(
+      settings.imageLibraryPath,
+      path.dirname(renderedPath),
+    )
+    const baseName = path.basename(renderedPath)
 
     await mkdir(targetDirectory, { recursive: true })
 
@@ -91,6 +110,10 @@ export class ImageLibraryService {
   }
 }
 
+/**
+ * 安全移动图片：同卷内使用原子 rename；跨卷时走 copy → 校验大小 → rename 临时文件 → 删除源文件。
+ * 源文件删除失败不会导致整体失败，而是通过 cleanupError 字段上报。
+ */
 async function safeMoveImage(sourcePath: string, targetPath: string, expectedSourceSize: number) {
   await access(sourcePath, constants.R_OK)
   await mkdir(path.dirname(targetPath), { recursive: true })

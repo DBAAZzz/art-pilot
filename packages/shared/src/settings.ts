@@ -3,8 +3,13 @@ export type CodexSessionCleanupPolicy = 'after-import' | 'after-days' | 'never'
 
 export type AppSettings = {
   imageLibraryPath: string
+  imagePathTemplate: string
   codexImageCleanup: CodexImageCleanupPolicy
   codexSessionCleanup: CodexSessionCleanupPolicy
 }
 
-export type UpdateAppSettingsRequest = Partial<Pick<AppSettings, 'imageLibraryPath' | 'codexImageCleanup'>>
+export const DEFAULT_IMAGE_PATH_TEMPLATE = '{YYYY}-{MM}/{jobId}_{index}'
+
+export const IMAGE_PATH_TEMPLATE_VARIABLES = ['YYYY', 'MM', 'DD', 'jobId', 'index'] as const
+
+export type UpdateAppSettingsRequest = Partial<Pick<AppSettings, 'imageLibraryPath' | 'imagePathTemplate' | 'codexImageCleanup'>>

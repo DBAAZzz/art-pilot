@@ -1,6 +1,7 @@
 import type { AppSettings, CodexImageCleanupPolicy } from '@art-pilot/shared'
+import { DEFAULT_IMAGE_PATH_TEMPLATE, getTemplatePreview, validateImagePathTemplate } from '@art-pilot/shared'
 import { FolderOpen } from 'lucide-react'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import {
   Select,
@@ -45,6 +46,7 @@ export function StoragePanel() {
     initialLoading: true,
   })
   const [imageLibraryPath, setImageLibraryPath] = useState('')
+  const [imagePathTemplate, setImagePathTemplate] = useState(DEFAULT_IMAGE_PATH_TEMPLATE)
   const [codexImageCleanup, setCodexImageCleanup] = useState<CodexImageCleanupPolicy>('never')
   const updateState = useLoadingState()
   const [statusText, setStatusText] = useState<string | null>(null)
@@ -58,6 +60,7 @@ export function StoragePanel() {
 
       if (result) {
         setImageLibraryPath(result.imageLibraryPath)
+        setImagePathTemplate(result.imagePathTemplate)
         setCodexImageCleanup(result.codexImageCleanup)
       }
     }
@@ -145,6 +148,40 @@ export function StoragePanel() {
     }
   }
 
+  async function updateImagePathTemplate(nextTemplate: string) {
+    const trimmed = nextTemplate.trim()
+
+    if (!settings || updateState.loading || !trimmed || trimmed === settings.imagePathTemplate) {
+      setImagePathTemplate(settings?.imagePathTemplate ?? nextTemplate)
+      return
+    }
+
+    const validation = validateImagePathTemplate(trimmed)
+    if (!validation.valid) {
+      setStatusText(validation.reason)
+      return
+    }
+
+    updateState.startLoading()
+    setStatusText(null)
+
+    try {
+      const nextSettings = await window.api.updateSettings({ imagePathTemplate: trimmed })
+      setSettings(nextSettings)
+      setImagePathTemplate(nextSettings.imagePathTemplate)
+    } catch (error) {
+      setImagePathTemplate(settings.imagePathTemplate)
+      updateState.failLoading(error)
+      setStatusText(getErrorMessage(error))
+      return
+    } finally {
+      updateState.stopLoading()
+    }
+  }
+
+  const templatePreview = useMemo(() => getTemplatePreview(imagePathTemplate), [imagePathTemplate])
+  const templateValidation = useMemo(() => validateImagePathTemplate(imagePathTemplate), [imagePathTemplate])
+
   return (
     <>
       <SettingsPanelHeader description="图片库路径和 Codex 临时产物清理策略" title="数据存储" />
@@ -174,6 +211,35 @@ export function StoragePanel() {
             </div>
           }
           title="图片库目录"
+        />
+        <SettingsRow
+          action={
+            <div className="flex w-full max-w-[520px] flex-col gap-1">
+              <div className="flex items-center gap-2">
+                <Input
+                  className="flex-1 font-mono text-sm"
+                  disabled={loading || updateState.loading}
+                  onBlur={() => void updateImagePathTemplate(imagePathTemplate)}
+                  onChange={(event) => setImagePathTemplate(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') {
+                      event.currentTarget.blur()
+                    }
+                  }}
+                  placeholder={DEFAULT_IMAGE_PATH_TEMPLATE}
+                  value={imagePathTemplate}
+                />
+              </div>
+              <p className={`text-left text-xs ${templateValidation.valid ? 'text-text-muted' : 'text-red-500'}`}>
+                {templateValidation.valid ? (
+                  <>
+                    预览：<span className="font-mono">{templatePreview}</span>
+                  </>
+                ) : templatePreview}
+              </p>
+            </div>
+          }
+          title="路径模板"
         />
         <SettingsRow
           action={
